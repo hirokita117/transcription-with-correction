@@ -22,6 +22,7 @@ import {
   StoreGetHistoryResponse,
   StoreSaveHistoryRequest,
   StoreSaveHistoryResponse,
+  StoreClearHistoryResponse,
   AppGetVersionResponse,
 } from '../shared/types/ipc';
 
@@ -52,7 +53,7 @@ interface ElectronAPI {
     set: (request: StoreSetRequest) => Promise<StoreSetResponse>;
     getHistory: () => Promise<StoreGetHistoryResponse>;
     saveHistory: (request: StoreSaveHistoryRequest) => Promise<StoreSaveHistoryResponse>;
-    clearHistory: () => Promise<{ success: boolean; data?: { cleared: boolean }; error?: any }>;
+    clearHistory: () => Promise<StoreClearHistoryResponse>;
   };
 
   // アプリケーション

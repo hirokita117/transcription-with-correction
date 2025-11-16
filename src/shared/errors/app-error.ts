@@ -62,7 +62,73 @@ export function handleError(error: unknown): AppError {
 }
 
 /**
- * ネットワークエラーのハンドリング
+ * リトライオプション
+ */
+export interface RetryOptions {
+  maxRetries?: number;
+  initialDelay?: number;
+  maxDelay?: number;
+  backoffMultiplier?: number;
+}
+
+/**
+ * ネットワークエラーをリトライ付きで実行する高階関数
+ * エラーハンドリングとリトライロジックをカプセル化
+ */
+export async function retry<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    initialDelay = 1000,
+    maxDelay = 10000,
+    backoffMultiplier = 2,
+  } = options;
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const appError = handleError(error);
+
+      // ネットワークエラーでない場合、またはリトライ上限に達した場合はエラーを投げる
+      if (
+        appError.code !== ErrorCode.NETWORK_ERROR &&
+        appError.code !== ErrorCode.NETWORK_TIMEOUT
+      ) {
+        throw appError;
+      }
+
+      if (attempt >= maxRetries) {
+        // リトライ上限に達した場合のエラー処理
+        throw new AppError(
+          ErrorCode.NETWORK_ERROR,
+          'ネットワークエラーが発生しました。接続を確認してください。',
+          appError.details,
+          { retryCount: attempt, maxRetries }
+        );
+      }
+
+      // 指数バックオフでリトライ前に待機
+      const delay = Math.min(
+        initialDelay * Math.pow(backoffMultiplier, attempt),
+        maxDelay
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  // この行には到達しないはずだが、TypeScript の型チェックのために必要
+  throw handleError(lastError);
+}
+
+/**
+ * ネットワークエラーのハンドリング（後方互換性のため残す）
+ * @deprecated 代わりに `retry` 関数を使用してください
  */
 export async function handleNetworkError(
   error: unknown,

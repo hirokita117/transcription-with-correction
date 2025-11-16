@@ -20,7 +20,7 @@ export const store = new Store<StoreSchema>({
     llmProvider: 'auto',
     history: [],
     customModels: [],
-    schemaVersion: 1,
+    schemaVersion: 0, // 初回起動時は0、マイグレーション後に1に更新
   },
   name: 'transcription-formatter',
 });
@@ -110,7 +110,7 @@ export function getWindowBounds():
  * スキーママイグレーション
  */
 export function migrateSchema(): void {
-  const currentVersion = store.get('schemaVersion', 1);
+  const currentVersion = store.get('schemaVersion', 0); // デフォルト値を0に変更
   const targetVersion = 1; // 現在のスキーマバージョン
 
   if (currentVersion < targetVersion) {
@@ -118,8 +118,14 @@ export function migrateSchema(): void {
     // 例: バージョン1へのマイグレーション
     if (currentVersion === 0) {
       // バージョン0から1へのマイグレーション
+      // 将来的にスキーマ変更が必要になった場合、ここにマイグレーション処理を追加
       store.set('schemaVersion', 1);
     }
+    // 将来的にバージョン2へのマイグレーションが必要になった場合:
+    // else if (currentVersion === 1) {
+    //   // バージョン1から2へのマイグレーション処理
+    //   store.set('schemaVersion', 2);
+    // }
   }
 }
 

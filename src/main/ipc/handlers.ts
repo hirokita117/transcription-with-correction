@@ -6,18 +6,11 @@ import { ipcMain } from 'electron';
 import { clipboard } from 'electron';
 import { app } from 'electron';
 import {
-  ModelsListRequest,
-  ModelsAddRequest,
-  ModelsRemoveRequest,
-  LLMFormatRequest,
-  ClipboardCopyRequest,
-  StoreGetRequest,
-  StoreSetRequest,
-  StoreSaveHistoryRequest,
   IPCResponse,
   IPCSuccess,
   IPCFailure,
   ErrorCode,
+  ModelInfo,
 } from '../../shared/types/ipc';
 import { AppError, handleError } from '../../shared/errors/app-error';
 import {
@@ -27,7 +20,16 @@ import {
   addHistoryItem,
   clearHistory,
 } from '../store/store';
-import { StoreKey } from '../../shared/types/ipc';
+import {
+  ModelsListRequestSchema,
+  ModelsAddRequestSchema,
+  ModelsRemoveRequestSchema,
+  LLMFormatRequestSchema,
+  ClipboardCopyRequestSchema,
+  StoreGetRequestSchema,
+  StoreSetRequestSchema,
+  StoreSaveHistoryRequestSchema,
+} from '../../shared/types/ipc-schemas';
 
 /**
  * 成功レスポンスを作成
@@ -54,8 +56,13 @@ export function setupIPCHandlers(): void {
   // モデル管理
   // ========================================================================
 
-  ipcMain.handle('models:list', async (_, request?: ModelsListRequest) => {
+  ipcMain.handle('models:list', async (_, request?: unknown) => {
     try {
+      // リクエストのバリデーション（オプショナル）
+      if (request !== undefined) {
+        ModelsListRequestSchema.parse(request);
+      }
+
       // TODO: LLM クライアントからモデル一覧を取得
       // 現在はストアからカスタムモデルのみを返す
       const customModels = getSetting('customModels');
@@ -64,14 +71,17 @@ export function setupIPCHandlers(): void {
       return success({
         models: customModels,
         defaultModel,
-      }) as IPCResponse<{ models: any[]; defaultModel?: string }>;
+      }) as IPCResponse<{ models: ModelInfo[]; defaultModel?: string }>;
     } catch (error) {
       return failure(handleError(error));
     }
   });
 
-  ipcMain.handle('models:add', async (_, request: ModelsAddRequest) => {
+  ipcMain.handle('models:add', async (_, request: unknown) => {
     try {
+      // リクエストのバリデーション
+      const validatedRequest = ModelsAddRequestSchema.parse(request);
+
       // TODO: モデルの追加処理を実装
       return failure(
         new AppError(
@@ -84,8 +94,11 @@ export function setupIPCHandlers(): void {
     }
   });
 
-  ipcMain.handle('models:remove', async (_, request: ModelsRemoveRequest) => {
+  ipcMain.handle('models:remove', async (_, request: unknown) => {
     try {
+      // リクエストのバリデーション
+      const validatedRequest = ModelsRemoveRequestSchema.parse(request);
+
       // TODO: モデルの削除処理を実装
       return failure(
         new AppError(
@@ -102,8 +115,11 @@ export function setupIPCHandlers(): void {
   // LLM操作
   // ========================================================================
 
-  ipcMain.handle('llm:format', async (_, request: LLMFormatRequest) => {
+  ipcMain.handle('llm:format', async (_, request: unknown) => {
     try {
+      // リクエストのバリデーション
+      const validatedRequest = LLMFormatRequestSchema.parse(request);
+
       // TODO: LLM クライアントを呼び出して整形処理を実装
       return failure(
         new AppError(
@@ -120,34 +136,40 @@ export function setupIPCHandlers(): void {
   // クリップボード
   // ========================================================================
 
-  ipcMain.handle(
-    'clipboard:copy',
-    async (_, request: ClipboardCopyRequest) => {
-      try {
-        clipboard.writeText(request.text);
-        return success({ copied: true });
-      } catch (error) {
-        return failure(handleError(error));
-      }
+  ipcMain.handle('clipboard:copy', async (_, request: unknown) => {
+    try {
+      // リクエストのバリデーション
+      const validatedRequest = ClipboardCopyRequestSchema.parse(request);
+
+      clipboard.writeText(validatedRequest.text);
+      return success({ copied: true });
+    } catch (error) {
+      return failure(handleError(error));
     }
-  );
+  });
 
   // ========================================================================
   // 永続化
   // ========================================================================
 
-  ipcMain.handle('store:get', async (_, request: StoreGetRequest) => {
+  ipcMain.handle('store:get', async (_, request: unknown) => {
     try {
-      const value = getSetting(request.key as StoreKey);
+      // リクエストのバリデーション
+      const validatedRequest = StoreGetRequestSchema.parse(request);
+
+      const value = getSetting(validatedRequest.key);
       return success(value);
     } catch (error) {
       return failure(handleError(error));
     }
   });
 
-  ipcMain.handle('store:set', async (_, request: StoreSetRequest) => {
+  ipcMain.handle('store:set', async (_, request: unknown) => {
     try {
-      setSetting(request.key as StoreKey, request.value);
+      // リクエストのバリデーション
+      const validatedRequest = StoreSetRequestSchema.parse(request);
+
+      setSetting(validatedRequest.key, validatedRequest.value);
       return success({ saved: true });
     } catch (error) {
       return failure(handleError(error));
@@ -166,21 +188,21 @@ export function setupIPCHandlers(): void {
     }
   });
 
-  ipcMain.handle(
-    'store:saveHistory',
-    async (_, request: StoreSaveHistoryRequest) => {
-      try {
-        addHistoryItem(request.item);
-        const history = getHistory();
-        return success({
-          saved: true,
-          totalItems: history.length,
-        });
-      } catch (error) {
-        return failure(handleError(error));
-      }
+  ipcMain.handle('store:saveHistory', async (_, request: unknown) => {
+    try {
+      // リクエストのバリデーション
+      const validatedRequest = StoreSaveHistoryRequestSchema.parse(request);
+
+      addHistoryItem(validatedRequest.item);
+      const history = getHistory();
+      return success({
+        saved: true,
+        totalItems: history.length,
+      });
+    } catch (error) {
+      return failure(handleError(error));
     }
-  );
+  });
 
   ipcMain.handle('store:clearHistory', async () => {
     try {

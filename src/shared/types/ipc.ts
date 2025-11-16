@@ -3,6 +3,9 @@
  * Main Process と Renderer Process 間の通信仕様
  */
 
+import { z } from 'zod';
+import { StoreKeySchema } from './ipc-schemas';
+
 // ============================================================================
 // 共通型
 // ============================================================================
@@ -160,15 +163,9 @@ export type ClipboardCopyResponse = IPCResponse<{ copied: boolean }>;
 // ============================================================================
 
 /**
- * 設定キー
+ * 設定キー（Zod スキーマから自動生成）
  */
-export type StoreKey =
-  | 'selectedModel'
-  | 'defaultModel'
-  | 'maxHistoryItems'
-  | 'formatOptions'
-  | 'llmBaseUrl'
-  | 'llmApiKey';
+export type StoreKey = z.infer<typeof StoreKeySchema>;
 
 /**
  * store:get リクエスト
@@ -229,6 +226,11 @@ export type StoreSaveHistoryResponse = IPCResponse<{
   saved: boolean;
   totalItems: number;
 }>;
+
+/**
+ * store:clearHistory レスポンス
+ */
+export type StoreClearHistoryResponse = IPCResponse<{ cleared: boolean }>;
 
 // ============================================================================
 // アプリケーション

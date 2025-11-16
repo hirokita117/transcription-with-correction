@@ -4,6 +4,7 @@
 
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { setupGlobalErrorHandlers } from './utils/error-logger';
 import { migrateSchema } from './store/store';
 import { setupIPCHandlers } from './ipc/handlers';
@@ -18,11 +19,44 @@ migrateSchema();
 let mainWindow: BrowserWindow | null = null;
 
 /**
+ * CSP nonce を生成
+ */
+function generateNonce(): string {
+  return crypto.randomBytes(16).toString('base64');
+}
+
+/**
+ * デバウンス関数
+ * 指定された時間内に複数回呼び出された場合、最後の呼び出しのみを実行
+ */
+function debounce<T extends (...args: unknown[]) => void>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return function executedFunction(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
+  };
+}
+
+/**
  * ウィンドウを作成
  */
 function createWindow(): void {
   // ウィンドウ状態の復元
   const bounds = getWindowBounds();
+
+  // CSP nonce を生成（本番環境用）
+  const nonce = process.env.NODE_ENV === 'production' ? generateNonce() : '';
 
   mainWindow = new BrowserWindow({
     width: bounds?.width || 1200,
@@ -34,9 +68,29 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false, // preload が必要なため false
-      // Content Security Policy は HTML で設定
     },
   });
+
+  // CSP ヘッダーを設定
+  mainWindow.webContents.session.webRequest.onHeadersReceived(
+    (details, callback) => {
+      let csp: string;
+      if (process.env.NODE_ENV === 'production' && nonce) {
+        // 本番環境: nonce を使用した CSP（unsafe-inline を削除）
+        csp = `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'nonce-${nonce}';`;
+      } else {
+        // 開発環境: HMR のために unsafe-inline を許可
+        csp = `default-src 'self' http://localhost:*; script-src 'self' 'unsafe-inline' http://localhost:*; style-src 'self' 'unsafe-inline' http://localhost:*;`;
+      }
+
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp],
+        },
+      });
+    }
+  );
 
   // 開発環境では開発者ツールを開く
   if (process.env.NODE_ENV === 'development') {
@@ -48,23 +102,36 @@ function createWindow(): void {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // 本番環境: nonce を HTML に注入するために、HTML を読み込んでから nonce を設定
+    const htmlPath = path.join(__dirname, '../renderer/index.html');
+    mainWindow.loadFile(htmlPath).then(() => {
+      // HTML に nonce を設定するために、webContents でスクリプトを実行
+      if (nonce && mainWindow) {
+        mainWindow.webContents.executeJavaScript(`
+          const scripts = document.querySelectorAll('script');
+          scripts.forEach(script => {
+            script.setAttribute('nonce', '${nonce}');
+          });
+          const styles = document.querySelectorAll('style');
+          styles.forEach(style => {
+            style.setAttribute('nonce', '${nonce}');
+          });
+        `);
+      }
+    });
   }
 
-  // ウィンドウ状態の保存
-  mainWindow.on('resized', () => {
+  // ウィンドウ状態の保存（デバウンス付き）
+  // 300ms 以内に複数回イベントが発火した場合、最後の1回のみを実行
+  const debouncedSaveWindowBounds = debounce(() => {
     if (mainWindow) {
       const bounds = mainWindow.getBounds();
       saveWindowBounds(bounds);
     }
-  });
+  }, 300);
 
-  mainWindow.on('moved', () => {
-    if (mainWindow) {
-      const bounds = mainWindow.getBounds();
-      saveWindowBounds(bounds);
-    }
-  });
+  mainWindow.on('resized', debouncedSaveWindowBounds);
+  mainWindow.on('moved', debouncedSaveWindowBounds);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
