@@ -8,7 +8,7 @@
 ## Workspace State
 - **Existing Code**: No
 - **Reverse Engineering Needed**: No
-- **Workspace Root**: <PROJECT_ROOT>
+- **Workspace Root**: ~/Developer/transcription-with-correction
 
 ## Code Location Rules
 - **Application Code**: Workspace root (NEVER in aidlc-docs/)
