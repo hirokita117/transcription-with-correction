@@ -1,4 +1,5 @@
 have_fun: false
+response_language: ja
 memory_config:
   disabled: false
 code_review:
