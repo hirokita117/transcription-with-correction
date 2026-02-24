@@ -65,13 +65,13 @@ export class LLMService {
       return this.errorResponse('CONNECTION_ERROR');
     }
 
-    const statusError = error as { status?: number };
-    if (statusError.status === 401 || statusError.status === 403) {
-      return this.errorResponse('AUTH_ERROR');
-    }
-
-    if (statusError.status && statusError.status >= 400) {
-      return this.errorResponse('API_ERROR');
+    if (this.hasStatus(error)) {
+      if (error.status === 401 || error.status === 403) {
+        return this.errorResponse('AUTH_ERROR');
+      }
+      if (error.status >= 400) {
+        return this.errorResponse('API_ERROR');
+      }
     }
 
     // Check for connection-related errors
@@ -83,6 +83,15 @@ export class LLMService {
     }
 
     return this.errorResponse('UNKNOWN_ERROR');
+  }
+
+  private hasStatus(error: unknown): error is { status: number } {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'status' in error &&
+      typeof (error as Record<string, unknown>).status === 'number'
+    );
   }
 
   private errorResponse(type: ErrorType): CorrectionResponse {

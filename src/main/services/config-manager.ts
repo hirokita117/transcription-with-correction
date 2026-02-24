@@ -1,7 +1,4 @@
 import Store from 'electron-store';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-import { app } from 'electron';
 import type { Settings, ValidationResult, ValidationError, ProviderType } from '../../shared/types';
 
 const DEFAULT_PROMPT_TEMPLATE = `あなたはプロフェッショナルな校正者です。
@@ -40,29 +37,26 @@ export class ConfigManager {
   }
 
   load(): Settings {
-    // Load .env file
-    const envPath = path.join(app.getAppPath(), '.env');
-    dotenv.config({ path: envPath });
-
-    // Build env-based config
+    // Build env-based config from process.env
     this.envConfig = this.buildEnvConfig();
 
-    // Merge: store > .env > defaults
+    // Merge: defaults < env < stored (higher priority wins)
     const stored = this.store.get('settings');
-    const merged: Settings = {
-      activeProvider: stored?.activeProvider ?? this.envConfig.activeProvider ?? DEFAULT_SETTINGS.activeProvider,
+    return {
+      ...DEFAULT_SETTINGS,
+      ...this.envConfig,
+      ...stored,
       lmStudio: {
-        endpointUrl: stored?.lmStudio?.endpointUrl ?? this.envConfig.lmStudio?.endpointUrl ?? DEFAULT_SETTINGS.lmStudio.endpointUrl,
-        modelName: stored?.lmStudio?.modelName ?? this.envConfig.lmStudio?.modelName ?? DEFAULT_SETTINGS.lmStudio.modelName,
+        ...DEFAULT_SETTINGS.lmStudio,
+        ...this.envConfig.lmStudio,
+        ...stored?.lmStudio,
       },
       gemini: {
-        apiKey: stored?.gemini?.apiKey ?? this.envConfig.gemini?.apiKey ?? DEFAULT_SETTINGS.gemini.apiKey,
-        modelName: stored?.gemini?.modelName ?? this.envConfig.gemini?.modelName ?? DEFAULT_SETTINGS.gemini.modelName,
+        ...DEFAULT_SETTINGS.gemini,
+        ...this.envConfig.gemini,
+        ...stored?.gemini,
       },
-      promptTemplate: stored?.promptTemplate ?? DEFAULT_SETTINGS.promptTemplate,
     };
-
-    return merged;
   }
 
   save(settings: Settings): void {

@@ -23,7 +23,10 @@ export function App() {
       return;
     }
 
-    if (!settings) return;
+    if (!settings) {
+      setError({ type: 'UNKNOWN_ERROR', message: '設定の読み込みに失敗しました。アプリを再起動してください' });
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
