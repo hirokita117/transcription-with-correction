@@ -43,15 +43,22 @@ actor SpeechRecognizer {
 
     func stop() {
         guard isRunning else { return }
-        recognitionTask?.cancel()
+        // End audio input and let the recognizer produce a final result
+        // (cancel() would discard the pending result)
+        recognitionRequest?.endAudio()
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
         recognitionRequest = nil
-        recognitionTask = nil
         audioEngine = nil
         isRunning = false
         sendOutput(makeStatusMessage(status: "stopped"))
+    }
+
+    /// Force cleanup without waiting for final result (called internally after isFinal)
+    private func cleanup() {
+        recognitionTask = nil
+        recognitionRequest = nil
+        audioEngine = nil
     }
 
     private func startRecognition(recognizer: SFSpeechRecognizer) async throws {
@@ -92,7 +99,7 @@ actor SpeechRecognizer {
                 self.sendOutput(makeResultMessage(text: text, isFinal: isFinal))
 
                 if isFinal {
-                    Task { await self.stop() }
+                    Task { await self.cleanup() }
                 }
             }
 
