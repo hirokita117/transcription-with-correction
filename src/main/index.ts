@@ -1,7 +1,8 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, globalShortcut } from 'electron';
 import path from 'path';
 import { ConfigManager } from './services/config-manager';
 import { LLMService } from './services/llm/llm-service';
+import { SpeechService } from './services/speech-service';
 import { IPCHandler } from './ipc-handler';
 
 let mainWindow: BrowserWindow | null = null;
@@ -9,7 +10,8 @@ let mainWindow: BrowserWindow | null = null;
 const configManager = new ConfigManager();
 const settings = configManager.load();
 const llmService = new LLMService(settings);
-const ipcHandler = new IPCHandler(configManager, llmService);
+const speechService = new SpeechService();
+const ipcHandler = new IPCHandler(configManager, llmService, speechService);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -38,6 +40,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ipcHandler.registerHandlers();
+  ipcHandler.registerVoiceShortcut(settings.voiceInput.shortcut);
   createWindow();
 
   app.on('activate', () => {
@@ -51,4 +54,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  ipcHandler.destroy();
 });

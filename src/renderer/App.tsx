@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { EditorPanel } from './components/EditorPanel';
 import { ResultPanel } from './components/ResultPanel';
 import { SettingsModal } from './components/SettingsModal';
+import { useVoiceInput } from './hooks/useVoiceInput';
 
 export function App() {
   const [inputText, setInputText] = useState('');
@@ -45,6 +46,20 @@ export function App() {
     setIsLoading(false);
   }, [inputText, settings]);
 
+  const { status: voiceStatus, volatileText, toggleVoiceInput } = useVoiceInput({
+    autoCorrectEnabled: settings?.voiceInput?.autoCorrect ?? true,
+    onFinalResult: useCallback((text: string) => {
+      setInputText(text);
+    }, []),
+    onAutoCorrect: useCallback(() => {
+      // Trigger correction after voice input completes
+      // We need to use a timeout to ensure inputText state is updated
+      setTimeout(() => {
+        handleCorrect();
+      }, 100);
+    }, [handleCorrect]),
+  });
+
   const handleSaveSettings = useCallback(async (newSettings: Settings) => {
     await window.electronAPI.saveSettings(newSettings);
     setSettings(newSettings);
@@ -54,6 +69,8 @@ export function App() {
   const handleCopy = useCallback(async (text: string) => {
     await navigator.clipboard.writeText(text);
   }, []);
+
+  const shortcutLabel = settings?.voiceInput?.shortcut ?? 'Cmd+Shift+V';
 
   return (
     <div className="h-full flex flex-col">
@@ -93,6 +110,10 @@ export function App() {
           onCopy={() => handleCopy(inputText)}
           isLoading={isLoading}
           canCopy={inputText.length > 0}
+          voiceStatus={voiceStatus}
+          volatileText={volatileText}
+          onToggleVoice={toggleVoiceInput}
+          shortcutLabel={shortcutLabel}
         />
         <ResultPanel
           value={correctedText}

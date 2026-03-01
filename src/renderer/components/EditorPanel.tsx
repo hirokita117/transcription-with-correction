@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { VoiceInputStatus } from '../../shared/types';
+import { VoiceButton } from './VoiceButton';
 
 interface EditorPanelProps {
   value: string;
@@ -7,9 +9,24 @@ interface EditorPanelProps {
   onCopy: () => void;
   isLoading: boolean;
   canCopy: boolean;
+  voiceStatus: VoiceInputStatus;
+  volatileText: string;
+  onToggleVoice: () => void;
+  shortcutLabel: string;
 }
 
-export function EditorPanel({ value, onChange, onCorrect, onCopy, isLoading, canCopy }: EditorPanelProps) {
+export function EditorPanel({
+  value,
+  onChange,
+  onCorrect,
+  onCopy,
+  isLoading,
+  canCopy,
+  voiceStatus,
+  volatileText,
+  onToggleVoice,
+  shortcutLabel,
+}: EditorPanelProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -17,6 +34,8 @@ export function EditorPanel({ value, onChange, onCorrect, onCopy, isLoading, can
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const isVoiceActive = voiceStatus === 'listening' || voiceStatus === 'starting';
 
   return (
     <div className="flex-1 flex flex-col border-r border-gray-200 p-4">
@@ -27,7 +46,16 @@ export function EditorPanel({ value, onChange, onCorrect, onCopy, isLoading, can
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+      {volatileText && (
+        <p className="text-gray-400 italic text-sm mt-1 px-1">{volatileText}</p>
+      )}
       <div className="flex gap-2 mt-3">
+        <VoiceButton
+          status={voiceStatus}
+          onClick={onToggleVoice}
+          isLoading={isLoading}
+          shortcutLabel={shortcutLabel}
+        />
         <button
           className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleCopy}
@@ -38,7 +66,7 @@ export function EditorPanel({ value, onChange, onCorrect, onCopy, isLoading, can
         <button
           className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           onClick={onCorrect}
-          disabled={isLoading}
+          disabled={isLoading || isVoiceActive}
         >
           {isLoading ? (
             <>

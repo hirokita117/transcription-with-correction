@@ -191,6 +191,61 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
             </div>
           )}
 
+          {/* Voice Input Settings */}
+          <div className="mb-6 space-y-3">
+            <label className="text-sm font-medium text-gray-700 block mb-2">音声入力</label>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">ショートカットキー</label>
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                placeholder="例: CommandOrControl+Shift+V"
+                value={localSettings.voiceInput.shortcut}
+                onChange={(e) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    voiceInput: { ...localSettings.voiceInput, shortcut: e.target.value },
+                  })
+                }
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Electron Accelerator 形式（例: Cmd+Shift+V, Ctrl+Shift+V）
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">認識言語</label>
+              <select
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                value={localSettings.voiceInput.language}
+                onChange={(e) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    voiceInput: { ...localSettings.voiceInput, language: e.target.value },
+                  })
+                }
+              >
+                <option value="ja-JP">日本語</option>
+                <option value="en-US">English (US)</option>
+              </select>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.voiceInput.autoCorrect}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      voiceInput: { ...localSettings.voiceInput, autoCorrect: e.target.checked },
+                    })
+                  }
+                  className="text-blue-600"
+                />
+                <span className="text-sm">音声入力完了後に自動校正を実行</span>
+              </label>
+            </div>
+          </div>
+
           {/* Prompt Template */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-1">

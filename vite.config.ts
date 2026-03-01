@@ -16,7 +16,7 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron/main',
             rollupOptions: {
-              external: ['electron', 'electron-store', 'dotenv', '@google/generative-ai'],
+              external: ['electron', 'electron-store', 'dotenv', '@google/generative-ai', 'child_process'],
             },
           },
         },
