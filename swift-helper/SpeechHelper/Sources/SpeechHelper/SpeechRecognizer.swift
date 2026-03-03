@@ -54,6 +54,13 @@ actor SpeechRecognizer {
         sendOutput(makeStatusMessage(status: "stopped"))
     }
 
+    /// Handle final result: reset state and cleanup resources
+    private func handleFinalCompletion() {
+        isRunning = false
+        sendOutput(makeStatusMessage(status: "stopped"))
+        cleanup()
+    }
+
     /// Force cleanup without waiting for final result (called internally after isFinal)
     private func cleanup() {
         recognitionTask = nil
@@ -67,9 +74,7 @@ actor SpeechRecognizer {
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        if #available(macOS 26.0, *) {
-            request.addsPunctuation = true
-        }
+        request.addsPunctuation = true
         self.recognitionRequest = request
 
         let inputNode = audioEngine.inputNode
@@ -99,7 +104,7 @@ actor SpeechRecognizer {
                 self.sendOutput(makeResultMessage(text: text, isFinal: isFinal))
 
                 if isFinal {
-                    Task { await self.cleanup() }
+                    Task { await self.handleFinalCompletion() }
                 }
             }
 

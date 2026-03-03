@@ -41,8 +41,8 @@ export class SpeechService extends EventEmitter {
         try {
           const message = JSON.parse(line) as SpeechHelperMessage;
           this.handleMessage(message);
-        } catch {
-          // Ignore malformed lines
+        } catch (e) {
+          console.error('Failed to parse JSON from SpeechHelper:', line, e);
         }
       }
     });
@@ -85,7 +85,7 @@ export class SpeechService extends EventEmitter {
     }
   }
 
-  private handleStatusMessage(helperStatus: string): void {
+  private handleStatusMessage(helperStatus: 'ready' | 'listening' | 'stopped'): void {
     switch (helperStatus) {
       case 'ready':
         // Helper is ready, no status change needed

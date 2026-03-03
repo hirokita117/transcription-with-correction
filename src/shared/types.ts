@@ -46,7 +46,7 @@ export interface SpeechHelperErrorMessage {
 
 export interface SpeechHelperStatusMessage {
   type: 'status';
-  data: { status: string };
+  data: { status: 'ready' | 'listening' | 'stopped' };
 }
 
 export type SpeechHelperMessage =

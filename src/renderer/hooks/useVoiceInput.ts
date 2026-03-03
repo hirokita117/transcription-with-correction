@@ -4,7 +4,7 @@ import type { VoiceInputStatus, TranscriptionResult } from '../../shared/types';
 interface UseVoiceInputOptions {
   autoCorrectEnabled: boolean;
   onFinalResult: (text: string) => void;
-  onAutoCorrect: () => void;
+  onAutoCorrect: (text: string) => void;
 }
 
 interface UseVoiceInputReturn {
@@ -22,6 +22,7 @@ export function useVoiceInput({
   const [volatileText, setVolatileText] = useState('');
   const accumulatedFinalRef = useRef('');
   const pendingAutoCorrectRef = useRef(false);
+  const toggleRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const unsubStatus = window.electronAPI.onVoiceInputStatusChange((newStatus) => {
@@ -31,14 +32,13 @@ export function useVoiceInput({
         setVolatileText('');
         if (pendingAutoCorrectRef.current && autoCorrectEnabled) {
           pendingAutoCorrectRef.current = false;
-          onAutoCorrect();
+          onAutoCorrect(accumulatedFinalRef.current);
         }
       }
     });
 
     const unsubResult = window.electronAPI.onTranscriptionResult((result: TranscriptionResult) => {
       if (result.isFinal) {
-        const separator = accumulatedFinalRef.current ? '' : '';
         accumulatedFinalRef.current = result.text;
         onFinalResult(result.text);
         setVolatileText('');
@@ -49,19 +49,7 @@ export function useVoiceInput({
     });
 
     const unsubShortcut = window.electronAPI.onVoiceInputShortcut(() => {
-      // Toggle will be handled in the component via toggleVoiceInput
-      setStatus((prev) => {
-        if (prev === 'idle' || prev === 'error') {
-          accumulatedFinalRef.current = '';
-          pendingAutoCorrectRef.current = false;
-          window.electronAPI.startVoiceInput();
-          return prev; // Status will be updated via IPC
-        } else if (prev === 'listening') {
-          window.electronAPI.stopVoiceInput();
-          return prev;
-        }
-        return prev;
-      });
+      toggleRef.current();
     });
 
     return () => {
@@ -80,6 +68,8 @@ export function useVoiceInput({
       window.electronAPI.stopVoiceInput();
     }
   }, [status]);
+
+  toggleRef.current = toggleVoiceInput;
 
   return { status, volatileText, toggleVoiceInput };
 }

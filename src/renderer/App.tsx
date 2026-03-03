@@ -18,8 +18,9 @@ export function App() {
     window.electronAPI.getSettings().then(setSettings);
   }, []);
 
-  const handleCorrect = useCallback(async () => {
-    if (!inputText.trim()) {
+  const handleCorrect = useCallback(async (textOverride?: string) => {
+    const text = textOverride ?? inputText;
+    if (!text.trim()) {
       setError({ type: 'EMPTY_TEXT', message: '校正するテキストを入力してください' });
       return;
     }
@@ -33,7 +34,7 @@ export function App() {
     setError(null);
 
     const response = await window.electronAPI.correctText({
-      text: inputText,
+      text,
       promptTemplate: settings.promptTemplate,
     });
 
@@ -51,12 +52,8 @@ export function App() {
     onFinalResult: useCallback((text: string) => {
       setInputText(text);
     }, []),
-    onAutoCorrect: useCallback(() => {
-      // Trigger correction after voice input completes
-      // We need to use a timeout to ensure inputText state is updated
-      setTimeout(() => {
-        handleCorrect();
-      }, 100);
+    onAutoCorrect: useCallback((text: string) => {
+      handleCorrect(text);
     }, [handleCorrect]),
   });
 
