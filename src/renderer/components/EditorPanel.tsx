@@ -36,6 +36,7 @@ export function EditorPanel({
   };
 
   const isVoiceActive = voiceStatus === 'listening' || voiceStatus === 'starting';
+  const isCorrectionDisabled = isLoading || isVoiceActive;
 
   return (
     <div className="flex-1 flex flex-col border-r border-gray-200 p-4">
@@ -65,8 +66,8 @@ export function EditorPanel({
         </button>
         <button
           className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          onClick={onCorrect}
-          disabled={isLoading || isVoiceActive}
+          onClick={() => onCorrect()}
+          disabled={isCorrectionDisabled}
         >
           {isLoading ? (
             <>

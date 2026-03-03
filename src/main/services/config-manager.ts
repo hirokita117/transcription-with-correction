@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS: Settings = {
   },
   promptTemplate: DEFAULT_PROMPT_TEMPLATE,
   voiceInput: {
-    shortcut: 'CommandOrControl+Shift+V',
+    shortcut: 'CommandOrControl+Shift+L',
     autoCorrect: true,
     language: 'ja-JP',
   },
