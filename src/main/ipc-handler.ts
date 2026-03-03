@@ -1,4 +1,4 @@
-import { ipcMain, globalShortcut, BrowserWindow } from 'electron';
+import { ipcMain, globalShortcut, BrowserWindow, app } from 'electron';
 import type { CorrectionRequest, Settings, TranscriptionResult, VoiceInputStatus } from '../shared/types';
 import { ConfigManager } from './services/config-manager';
 import { LLMService } from './services/llm/llm-service';
@@ -64,6 +64,7 @@ export class IPCHandler {
 
     try {
       const registered = globalShortcut.register(shortcut, () => {
+        this.bringAppToFront();
         this.sendToRenderer('voice-input-shortcut');
       });
 
@@ -92,5 +93,26 @@ export class IPCHandler {
         win.webContents.send(channel, ...args);
       }
     }
+  }
+
+  private bringAppToFront(): void {
+    const windows = BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed());
+    if (windows.length === 0) return;
+
+    const targetWindow = windows.find((win) => win.isVisible()) ?? windows[0];
+
+    if (targetWindow.isMinimized()) {
+      targetWindow.restore();
+    }
+    if (!targetWindow.isVisible()) {
+      targetWindow.show();
+    }
+
+    app.focus({ steal: true });
+    targetWindow.focus();
+
+    // Some desktop environments require a short always-on-top toggle for reliable foregrounding.
+    targetWindow.setAlwaysOnTop(true);
+    targetWindow.setAlwaysOnTop(false);
   }
 }
