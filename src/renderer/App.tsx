@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { EditorPanel } from './components/EditorPanel';
 import { ResultPanel } from './components/ResultPanel';
 import { SettingsModal } from './components/SettingsModal';
+import { useVoiceInput } from './hooks/useVoiceInput';
 
 export function App() {
   const [inputText, setInputText] = useState('');
@@ -17,8 +18,9 @@ export function App() {
     window.electronAPI.getSettings().then(setSettings);
   }, []);
 
-  const handleCorrect = useCallback(async () => {
-    if (!inputText.trim()) {
+  const handleCorrect = useCallback(async (textOverride?: string) => {
+    const text = textOverride ?? inputText;
+    if (!text.trim()) {
       setError({ type: 'EMPTY_TEXT', message: '校正するテキストを入力してください' });
       return;
     }
@@ -32,7 +34,7 @@ export function App() {
     setError(null);
 
     const response = await window.electronAPI.correctText({
-      text: inputText,
+      text,
       promptTemplate: settings.promptTemplate,
     });
 
@@ -45,6 +47,16 @@ export function App() {
     setIsLoading(false);
   }, [inputText, settings]);
 
+  const { status: voiceStatus, volatileText, toggleVoiceInput } = useVoiceInput({
+    autoCorrectEnabled: settings?.voiceInput?.autoCorrect ?? true,
+    onFinalResult: useCallback((text: string) => {
+      setInputText(text);
+    }, []),
+    onAutoCorrect: useCallback((text: string) => {
+      handleCorrect(text);
+    }, [handleCorrect]),
+  });
+
   const handleSaveSettings = useCallback(async (newSettings: Settings) => {
     await window.electronAPI.saveSettings(newSettings);
     setSettings(newSettings);
@@ -54,6 +66,8 @@ export function App() {
   const handleCopy = useCallback(async (text: string) => {
     await navigator.clipboard.writeText(text);
   }, []);
+
+  const shortcutLabel = settings?.voiceInput?.shortcut ?? 'Cmd+Shift+V';
 
   return (
     <div className="h-full flex flex-col">
@@ -93,6 +107,10 @@ export function App() {
           onCopy={() => handleCopy(inputText)}
           isLoading={isLoading}
           canCopy={inputText.length > 0}
+          voiceStatus={voiceStatus}
+          volatileText={volatileText}
+          onToggleVoice={toggleVoiceInput}
+          shortcutLabel={shortcutLabel}
         />
         <ResultPanel
           value={correctedText}

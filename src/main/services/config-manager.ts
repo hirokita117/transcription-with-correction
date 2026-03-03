@@ -23,6 +23,11 @@ const DEFAULT_SETTINGS: Settings = {
     modelName: 'gemini-2.0-flash',
   },
   promptTemplate: DEFAULT_PROMPT_TEMPLATE,
+  voiceInput: {
+    shortcut: 'CommandOrControl+Shift+V',
+    autoCorrect: true,
+    language: 'ja-JP',
+  },
 };
 
 export class ConfigManager {
@@ -55,6 +60,10 @@ export class ConfigManager {
         ...DEFAULT_SETTINGS.gemini,
         ...this.envConfig.gemini,
         ...stored?.gemini,
+      },
+      voiceInput: {
+        ...DEFAULT_SETTINGS.voiceInput,
+        ...stored?.voiceInput,
       },
     };
   }

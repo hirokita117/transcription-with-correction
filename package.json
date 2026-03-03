@@ -5,12 +5,13 @@
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "npm run build:swift && tsc && vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "vite build && electron .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build:swift": "cd swift-helper/SpeechHelper && swift build -c release"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

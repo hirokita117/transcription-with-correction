@@ -8,8 +8,20 @@
     "dist/**/*",
     "dist-electron/**/*"
   ],
+  "extraResources": [
+    {
+      "from": "swift-helper/SpeechHelper/.build/release/SpeechHelper",
+      "to": "SpeechHelper"
+    }
+  ],
   "mac": {
     "target": "dmg",
-    "category": "public.app-category.productivity"
+    "category": "public.app-category.productivity",
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist",
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "音声入力機能でマイクを使用します。",
+      "NSSpeechRecognitionUsageDescription": "音声認識機能を使用して文字起こしを行います。"
+    }
   }
 }
