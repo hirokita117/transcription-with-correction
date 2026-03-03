@@ -375,7 +375,7 @@ if (result.isFinal) {
 
 ---
 
-## G-3: 存在しないmacOSバージョンのチェック
+## G-3: macOSバージョンのチェック
 
 **ファイル**: `swift-helper/SpeechHelper/Sources/SpeechHelper/SpeechRecognizer.swift`  
 **重要度**: Medium（機能が使われないまま残る）
@@ -387,8 +387,8 @@ if (result.isFinal) {
 let request = SFSpeechAudioBufferRecognitionRequest()
 request.shouldReportPartialResults = true
 
-if #available(macOS 26.0, *) {    // ← macOS 26.0 は存在しない！（2026年3月現在）
-    request.addsPunctuation = true // ← この行が実行されることは絶対にない
+if #available(macOS 26.0, *) {
+    request.addsPunctuation = true
 }
 ```
 
