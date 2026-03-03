@@ -199,7 +199,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
               <input
                 type="text"
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                placeholder="例: CommandOrControl+Shift+V"
+                placeholder="例: CommandOrControl+Shift+L"
                 value={localSettings.voiceInput.shortcut}
                 onChange={(e) =>
                   setLocalSettings({
@@ -209,7 +209,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 }
               />
               <p className="text-xs text-gray-500 mt-1">
-                Electron Accelerator 形式（例: Cmd+Shift+V, Ctrl+Shift+V）
+                Electron Accelerator 形式（例: Cmd+Shift+L, Ctrl+Shift+L）
               </p>
             </div>
             <div>

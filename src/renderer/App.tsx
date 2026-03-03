@@ -19,7 +19,7 @@ export function App() {
   }, []);
 
   const handleCorrect = useCallback(async (textOverride?: string) => {
-    const text = textOverride ?? inputText;
+    const text = typeof textOverride === 'string' ? textOverride : inputText;
     if (!text.trim()) {
       setError({ type: 'EMPTY_TEXT', message: '校正するテキストを入力してください' });
       return;
@@ -33,18 +33,26 @@ export function App() {
     setIsLoading(true);
     setError(null);
 
-    const response = await window.electronAPI.correctText({
-      text,
-      promptTemplate: settings.promptTemplate,
-    });
+    try {
+      const response = await window.electronAPI.correctText({
+        text,
+        promptTemplate: settings.promptTemplate,
+      });
 
-    if (response.success && response.correctedText) {
-      setCorrectedText(response.correctedText);
-    } else if (response.error) {
-      setError(response.error);
+      if (response.success && response.correctedText) {
+        setCorrectedText(response.correctedText);
+        void navigator.clipboard.writeText(response.correctedText).catch((clipboardError: unknown) => {
+          console.error('Failed to copy corrected text to clipboard:', clipboardError);
+        });
+      } else if (response.error) {
+        setError(response.error);
+      }
+    } catch (error: unknown) {
+      console.error('Correction request failed:', error);
+      setError({ type: 'UNKNOWN_ERROR', message: '校正処理中にエラーが発生しました。しばらく待ってからもう一度お試しください' });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, [inputText, settings]);
 
   const { status: voiceStatus, volatileText, toggleVoiceInput } = useVoiceInput({
@@ -67,7 +75,25 @@ export function App() {
     await navigator.clipboard.writeText(text);
   }, []);
 
-  const shortcutLabel = settings?.voiceInput?.shortcut ?? 'Cmd+Shift+V';
+  useEffect(() => {
+    const handleGlobalCorrectShortcut = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
+      if (!event.metaKey || event.key !== 'Enter') return;
+      if (isLoading) return;
+      if (voiceStatus === 'listening' || voiceStatus === 'starting') return;
+      if (isSettingsOpen) return;
+
+      event.preventDefault();
+      void handleCorrect();
+    };
+
+    window.addEventListener('keydown', handleGlobalCorrectShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalCorrectShortcut);
+    };
+  }, [handleCorrect, isLoading, isSettingsOpen, voiceStatus]);
+
+  const shortcutLabel = settings?.voiceInput?.shortcut ?? 'Cmd+Shift+L';
 
   return (
     <div className="h-full flex flex-col">
