@@ -2,7 +2,8 @@ node_modules/
 dist/
 dist-electron/
 out/
-build/
+build/*
+!build/icon.png
 .build/
 .env
 *.log
