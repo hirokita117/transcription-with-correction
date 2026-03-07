@@ -32,12 +32,12 @@ export function VoiceButton({ status, onClick, isLoading, shortcutLabel }: Voice
 
   const getButtonStyle = () => {
     if (status === 'listening') {
-      return 'bg-red-500 text-white border-red-500 hover:bg-red-600 animate-pulse';
+      return 'border-rose-500 bg-rose-500 text-white hover:bg-rose-600 animate-pulse';
     }
     if (status === 'starting' || status === 'stopping') {
-      return 'border-gray-300 text-gray-400 cursor-not-allowed';
+      return 'border-stone-300 text-stone-400 cursor-not-allowed';
     }
-    return 'border-gray-300 text-gray-600 hover:bg-gray-50';
+    return 'border-stone-300 text-stone-700 hover:bg-stone-50';
   };
 
   const getLabel = () => {
@@ -55,7 +55,7 @@ export function VoiceButton({ status, onClick, isLoading, shortcutLabel }: Voice
 
   return (
     <button
-      className={`px-3 py-1.5 text-sm border rounded flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${getButtonStyle()}`}
+      className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${getButtonStyle()}`}
       onClick={onClick}
       disabled={isDisabled}
       title={`音声入力 (${shortcutLabel})`}

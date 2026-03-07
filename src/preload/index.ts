@@ -1,7 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
+  AnalyticsEvent,
+  BootstrapData,
+  CorrectionHistoryItem,
   CorrectionRequest,
   CorrectionResponse,
+  ExportCorrectionPayload,
+  ExportCorrectionResponse,
   Settings,
   TranscriptionResult,
   VoiceInputStatus,
@@ -11,11 +16,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   correctText: (request: CorrectionRequest): Promise<CorrectionResponse> => {
     return ipcRenderer.invoke('correct-text', request);
   },
+  getBootstrapData: (): Promise<BootstrapData> => {
+    return ipcRenderer.invoke('get-bootstrap-data');
+  },
   getSettings: (): Promise<Settings> => {
     return ipcRenderer.invoke('get-settings');
   },
   saveSettings: (settings: Settings): Promise<void> => {
     return ipcRenderer.invoke('save-settings', settings);
+  },
+  getCorrectionHistory: (): Promise<CorrectionHistoryItem[]> => {
+    return ipcRenderer.invoke('get-correction-history');
+  },
+  saveCorrectionHistoryItem: (item: CorrectionHistoryItem): Promise<void> => {
+    return ipcRenderer.invoke('save-correction-history-item', item);
+  },
+  exportCorrectionResult: (payload: ExportCorrectionPayload): Promise<ExportCorrectionResponse> => {
+    return ipcRenderer.invoke('export-correction-result', payload);
+  },
+  trackEvent: (event: AnalyticsEvent): Promise<void> => {
+    return ipcRenderer.invoke('track-event', event);
   },
   startVoiceInput: (): Promise<void> => {
     return ipcRenderer.invoke('start-voice-input');
