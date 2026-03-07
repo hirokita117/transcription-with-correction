@@ -90,8 +90,8 @@ export function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4">
+      <div className="w-full max-w-lg overflow-y-auto rounded-[2rem] border border-white/70 bg-white/92 shadow-[0_24px_80px_rgba(62,78,71,0.18)] backdrop-blur">
         <div className="p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">設定</h2>
 

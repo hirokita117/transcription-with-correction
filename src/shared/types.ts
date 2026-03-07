@@ -155,9 +155,9 @@ export interface BootstrapData {
 
 export type PasteBackStatus =
   | 'pasted'
-  | 'copied_only_permission_missing'
-  | 'copied_only_target_missing'
-  | 'paste_failed';
+  | 'clipboard_only'
+  | 'settings_required'
+  | 'correction_failed';
 
 export interface PasteBackResult {
   status: PasteBackStatus;
@@ -170,18 +170,36 @@ export interface PermissionStatus {
   automationAvailable?: boolean;
 }
 
-export type OverlayPhase =
+export type VoiceSessionPhase =
+  | 'hidden'
   | 'recording'
   | 'transcribing'
   | 'correcting'
   | 'success'
-  | 'fallback'
-  | 'error';
+  | 'provider_not_configured'
+  | 'correction_failed'
+  | 'paste_fallback';
 
-export interface OverlayState {
+export type VoiceSessionErrorCode =
+  | 'provider_not_configured'
+  | 'connection_error'
+  | 'auth_error'
+  | 'api_error'
+  | 'unknown_error'
+  | 'permission_missing'
+  | 'target_not_found'
+  | 'target_not_frontmost'
+  | 'paste_failed';
+
+export interface VoiceSessionViewModel {
   visible: boolean;
-  phase: OverlayPhase;
+  phase: VoiceSessionPhase;
+  liveTranscript: string;
+  finalTranscript: string;
+  correctedText?: string;
   message: string;
+  canRetryCorrection: boolean;
+  errorCode?: VoiceSessionErrorCode;
 }
 
 export interface ValidationError {
@@ -195,25 +213,16 @@ export interface ValidationResult {
 }
 
 export interface ElectronAPI {
-  correctText(request: CorrectionRequest): Promise<CorrectionResponse>;
-  getBootstrapData(): Promise<BootstrapData>;
-  getSettings(): Promise<Settings>;
+  getSettingsWindowData(): Promise<BootstrapData>;
   saveSettings(settings: Settings): Promise<void>;
-  getCorrectionHistory(): Promise<CorrectionHistoryItem[]>;
-  saveCorrectionHistoryItem(item: CorrectionHistoryItem): Promise<void>;
-  exportCorrectionResult(payload: ExportCorrectionPayload): Promise<ExportCorrectionResponse>;
-  trackEvent(event: AnalyticsEvent): Promise<void>;
-  startVoiceInput(): Promise<void>;
-  stopVoiceInput(): Promise<void>;
-  pasteCorrectedText(text: string): Promise<PasteBackResult>;
   getPermissionStatus(): Promise<PermissionStatus>;
   openAccessibilitySettings(): Promise<void>;
-  updateOverlayState(state: OverlayState): Promise<void>;
-  dismissOverlay(): Promise<void>;
-  onTranscriptionResult(callback: (result: TranscriptionResult) => void): () => void;
-  onVoiceInputStatusChange(callback: (status: VoiceInputStatus) => void): () => void;
-  onVoiceInputShortcut(callback: () => void): () => void;
-  onOverlayStateChange(callback: (state: OverlayState) => void): () => void;
+  openSettingsWindow(): Promise<void>;
+  closeSettingsWindow(): Promise<void>;
+  retryLastCorrection(): Promise<void>;
+  dismissVoiceWindow(): Promise<void>;
+  onVoiceSessionStateChange(callback: (state: VoiceSessionViewModel) => void): () => void;
+  onSettingsRequired(callback: () => void): () => void;
 }
 
 declare global {

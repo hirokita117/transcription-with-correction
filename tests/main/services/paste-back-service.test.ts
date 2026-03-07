@@ -66,14 +66,14 @@ describe('PasteBackService', () => {
 
     const result = await service.pasteText('校正済み', true);
 
-    expect(result.status).toBe('copied_only_permission_missing');
+    expect(result.status).toBe('clipboard_only');
     expect(helper.runCommand).not.toHaveBeenCalled();
   });
 
-  it('returns copied_only_target_missing when there is no target app', async () => {
+  it('returns clipboard_only when there is no target app', async () => {
     const result = await service.pasteText('校正済み', true);
 
-    expect(result.status).toBe('copied_only_target_missing');
+    expect(result.status).toBe('clipboard_only');
     expect(clipboardWriteText).toHaveBeenCalledWith('校正済み');
   });
 
@@ -87,7 +87,7 @@ describe('PasteBackService', () => {
 
     const result = await service.pasteText('校正済み', false);
 
-    expect(result.status).toBe('paste_failed');
+    expect(result.status).toBe('correction_failed');
   });
 
   it('falls back when the target app is not frontmost after activation', async () => {
@@ -99,7 +99,7 @@ describe('PasteBackService', () => {
 
     const result = await service.pasteText('校正済み', true);
 
-    expect(result.status).toBe('copied_only_target_missing');
+    expect(result.status).toBe('clipboard_only');
     expect(result.details).toBe('target_not_frontmost');
   });
 });

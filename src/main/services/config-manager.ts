@@ -38,7 +38,7 @@ const DEFAULT_SETTINGS: Settings = {
   },
   residentMode: {
     enabled: true,
-    showDockIcon: true,
+    showDockIcon: false,
   },
   pasteBack: {
     enabled: true,

@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { VoiceOverlay } from './components/voice-overlay';
+import { VoiceCaptureApp } from './voice-capture-app';
 import './index.css';
 
 const root = createRoot(document.getElementById('root')!);
@@ -11,4 +11,4 @@ if (isOverlayWindow) {
   document.body.classList.add('overlay-window');
 }
 
-root.render(isOverlayWindow ? <VoiceOverlay /> : <App />);
+root.render(isOverlayWindow ? <VoiceCaptureApp /> : <App />);

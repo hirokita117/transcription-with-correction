@@ -1,10 +1,11 @@
-import { Menu, Tray, BrowserWindow, nativeImage, app } from 'electron';
+import { Menu, Tray, nativeImage, app } from 'electron';
+import path from 'path';
 import type { PermissionStatus } from '../../shared/types';
 
 interface ResidentModeOptions {
   isVoiceListening: () => boolean;
   onToggleVoiceInput: () => void;
-  onOpenWindow: () => void;
+  onOpenSettings: () => void;
   onQuit: () => void;
   getPermissionStatus: () => Promise<PermissionStatus>;
 }
@@ -27,12 +28,18 @@ export class ResidentModeService {
       return;
     }
 
-    const trayIcon = nativeImage.createEmpty();
+    const iconPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'icon.png')
+      : path.join(app.getAppPath(), 'build', 'icon.png');
+    const trayIcon = nativeImage.createFromPath(iconPath).resize({
+      width: 18,
+      height: 18,
+    });
+    trayIcon.setTemplateImage(true);
     this.tray = new Tray(trayIcon);
-    this.tray.setTitle('校正');
     this.tray.setToolTip('Transcription Correction');
     this.tray.on('click', () => {
-      this.options.onOpenWindow();
+      this.options.onOpenSettings();
     });
 
     await this.refreshMenu();
@@ -48,8 +55,8 @@ export class ResidentModeService {
         click: this.options.onToggleVoiceInput,
       },
       {
-        label: 'メインウィンドウを開く',
-        click: this.options.onOpenWindow,
+        label: '設定を開く',
+        click: this.options.onOpenSettings,
       },
       {
         label: permission.accessibilityTrusted
@@ -76,15 +83,6 @@ export class ResidentModeService {
     } else {
       app.dock.hide();
     }
-  }
-
-  handleWindowClose(window: BrowserWindow, enabled: boolean, isQuitting: boolean): boolean {
-    if (!enabled || isQuitting) {
-      return false;
-    }
-
-    window.hide();
-    return true;
   }
 
   destroy(): void {

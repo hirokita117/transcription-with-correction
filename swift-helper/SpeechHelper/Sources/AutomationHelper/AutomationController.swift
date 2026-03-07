@@ -45,7 +45,7 @@ enum AutomationController {
     }
 
     private static func activate(_ runningApp: NSRunningApplication) -> OperationPayload {
-        let activated = runningApp.activate(options: [])
+        let activated = runningApp.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
         return OperationPayload(ok: activated, message: activated ? nil : "Failed to activate application")
     }
 
@@ -54,13 +54,24 @@ enum AutomationController {
             return OperationPayload(ok: false, message: "Accessibility permission is not granted")
         }
 
-        guard let source = CGEventSource(stateID: .combinedSessionState) else {
-            return OperationPayload(ok: false, message: "Failed to create event source")
+        let appleScript = """
+        tell application "System Events"
+            keystroke "v" using command down
+        end tell
+        """
+
+        if let script = NSAppleScript(source: appleScript) {
+            var error: NSDictionary?
+            script.executeAndReturnError(&error)
+            if error == nil {
+                return OperationPayload(ok: true, message: nil)
+            }
         }
 
-        guard let commandDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
+        guard let source = CGEventSource(stateID: .combinedSessionState),
+              let commandDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true),
               let commandUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) else {
-            return OperationPayload(ok: false, message: "Failed to create paste key event")
+            return OperationPayload(ok: false, message: "Failed to create paste event")
         }
 
         commandDown.flags = .maskCommand

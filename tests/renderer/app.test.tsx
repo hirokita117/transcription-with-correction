@@ -2,19 +2,19 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/renderer/App';
-import type { ElectronAPI, Settings } from '../../src/shared/types';
+import { VoiceCaptureApp } from '../../src/renderer/voice-capture-app';
+import type { BootstrapData, ElectronAPI, Settings, VoiceSessionViewModel } from '../../src/shared/types';
 
-const getBootstrapDataMock = vi.fn();
-const getCorrectionHistoryMock = vi.fn();
-const saveCorrectionHistoryItemMock = vi.fn();
-const exportCorrectionResultMock = vi.fn();
-const trackEventMock = vi.fn();
-const getSettingsMock = vi.fn();
+const getSettingsWindowDataMock = vi.fn();
+const saveSettingsMock = vi.fn();
 const getPermissionStatusMock = vi.fn();
-const correctTextMock = vi.fn();
-const pasteCorrectedTextMock = vi.fn();
-const updateOverlayStateMock = vi.fn();
-const dismissOverlayMock = vi.fn();
+const openAccessibilitySettingsMock = vi.fn();
+const openSettingsWindowMock = vi.fn();
+const closeSettingsWindowMock = vi.fn();
+const retryLastCorrectionMock = vi.fn();
+const dismissVoiceWindowMock = vi.fn();
+const onVoiceSessionStateChangeMock = vi.fn();
+const onSettingsRequiredMock = vi.fn();
 
 const settings: Settings = {
   activeProvider: 'lm-studio',
@@ -28,7 +28,7 @@ const settings: Settings = {
   },
   residentMode: {
     enabled: true,
-    showDockIcon: true,
+    showDockIcon: false,
   },
   pasteBack: {
     enabled: true,
@@ -36,70 +36,109 @@ const settings: Settings = {
   },
 };
 
+const bootstrapData: BootstrapData = {
+  settings,
+  isFirstRun: false,
+  needsSetup: false,
+};
+
 Object.assign(window, {
   electronAPI: {
-    correctText: correctTextMock,
-    getBootstrapData: getBootstrapDataMock,
-    getSettings: getSettingsMock,
-    saveSettings: vi.fn(),
-    getCorrectionHistory: getCorrectionHistoryMock,
-    saveCorrectionHistoryItem: saveCorrectionHistoryItemMock,
-    exportCorrectionResult: exportCorrectionResultMock,
-    trackEvent: trackEventMock,
-    startVoiceInput: vi.fn(),
-    stopVoiceInput: vi.fn(),
-    pasteCorrectedText: pasteCorrectedTextMock,
+    getSettingsWindowData: getSettingsWindowDataMock,
+    saveSettings: saveSettingsMock,
     getPermissionStatus: getPermissionStatusMock,
-    openAccessibilitySettings: vi.fn(),
-    updateOverlayState: updateOverlayStateMock,
-    dismissOverlay: dismissOverlayMock,
-    onTranscriptionResult: vi.fn(() => vi.fn()),
-    onVoiceInputStatusChange: vi.fn(() => vi.fn()),
-    onVoiceInputShortcut: vi.fn(() => vi.fn()),
-    onOverlayStateChange: vi.fn(() => vi.fn()),
+    openAccessibilitySettings: openAccessibilitySettingsMock,
+    openSettingsWindow: openSettingsWindowMock,
+    closeSettingsWindow: closeSettingsWindowMock,
+    retryLastCorrection: retryLastCorrectionMock,
+    dismissVoiceWindow: dismissVoiceWindowMock,
+    onVoiceSessionStateChange: onVoiceSessionStateChangeMock,
+    onSettingsRequired: onSettingsRequiredMock,
   } satisfies ElectronAPI,
 });
 
 describe('App', () => {
   beforeEach(() => {
-    getBootstrapDataMock.mockResolvedValue({
-      settings,
-      isFirstRun: false,
-      needsSetup: false,
-    });
-    getCorrectionHistoryMock.mockResolvedValue([]);
-    saveCorrectionHistoryItemMock.mockResolvedValue(undefined);
-    exportCorrectionResultMock.mockResolvedValue({ success: true, path: '/tmp/out.txt' });
-    trackEventMock.mockResolvedValue(undefined);
-    getSettingsMock.mockResolvedValue(settings);
+    getSettingsWindowDataMock.mockResolvedValue(bootstrapData);
+    saveSettingsMock.mockResolvedValue(undefined);
     getPermissionStatusMock.mockResolvedValue({ accessibilityTrusted: true });
-    correctTextMock.mockResolvedValue({ success: true, correctedText: '校正後' });
-    pasteCorrectedTextMock.mockResolvedValue({ status: 'pasted', message: '校正して貼り付けました' });
-    updateOverlayStateMock.mockResolvedValue(undefined);
-    dismissOverlayMock.mockResolvedValue(undefined);
-    vi.stubGlobal('navigator', {
-      ...navigator,
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
-    });
+    openAccessibilitySettingsMock.mockResolvedValue(undefined);
+    openSettingsWindowMock.mockResolvedValue(undefined);
+    closeSettingsWindowMock.mockResolvedValue(undefined);
+    retryLastCorrectionMock.mockResolvedValue(undefined);
+    dismissVoiceWindowMock.mockResolvedValue(undefined);
+    onVoiceSessionStateChangeMock.mockImplementation(() => vi.fn());
+    onSettingsRequiredMock.mockImplementation(() => vi.fn());
   });
 
-  it('calls pasteCorrectedText after correction when paste-back is enabled', async () => {
+  it('loads settings window data and saves updates', async () => {
     render(<App />);
 
-    const textarea = await screen.findByPlaceholderText('ここにテキストを入力するか、音声入力を開始してください...');
-    fireEvent.change(textarea, { target: { value: 'テスト入力' } });
-    fireEvent.click(screen.getByRole('button', { name: '校正' }));
+    expect(await screen.findByText('文字起こし校正の設定')).toBeTruthy();
+
+    const dockToggle = await screen.findByLabelText('Dock アイコンを表示する');
+    fireEvent.click(dockToggle);
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
 
     await waitFor(() => {
-      expect(pasteCorrectedTextMock).toHaveBeenCalledWith('校正後');
+      expect(saveSettingsMock).toHaveBeenCalledWith({
+        ...settings,
+        residentMode: {
+          ...settings.residentMode,
+          showDockIcon: true,
+        },
+      });
+    });
+  });
+});
+
+describe('VoiceCaptureApp', () => {
+  beforeEach(() => {
+    onVoiceSessionStateChangeMock.mockReset();
+    retryLastCorrectionMock.mockReset();
+    openSettingsWindowMock.mockReset();
+    dismissVoiceWindowMock.mockReset();
+  });
+
+  it('shows live transcript while recording', async () => {
+    onVoiceSessionStateChangeMock.mockImplementation((callback: (state: VoiceSessionViewModel) => void) => {
+      callback({
+        visible: true,
+        phase: 'recording',
+        liveTranscript: 'こんにちは',
+        finalTranscript: '',
+        message: '話している内容をリアルタイムで表示します',
+        canRetryCorrection: false,
+      });
+      return vi.fn();
     });
 
-    expect(updateOverlayStateMock).toHaveBeenCalledWith({
-      visible: true,
-      phase: 'correcting',
-      message: 'テキストを整えています',
+    render(<VoiceCaptureApp />);
+
+    expect(await screen.findByText('音声入力中')).toBeTruthy();
+    expect(screen.getByText('こんにちは')).toBeTruthy();
+  });
+
+  it('retries failed correction on button click', async () => {
+    onVoiceSessionStateChangeMock.mockImplementation((callback: (state: VoiceSessionViewModel) => void) => {
+      callback({
+        visible: true,
+        phase: 'correction_failed',
+        liveTranscript: '',
+        finalTranscript: '失敗したテキスト',
+        message: '校正処理に失敗しました',
+        canRetryCorrection: true,
+        errorCode: 'api_error',
+      });
+      return vi.fn();
+    });
+
+    render(<VoiceCaptureApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '再校正' }));
+
+    await waitFor(() => {
+      expect(retryLastCorrectionMock).toHaveBeenCalled();
     });
   });
 });

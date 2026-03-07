@@ -28,13 +28,13 @@ export class PasteBackService {
     clipboard.writeText(text);
 
     if (!this.targetApp) {
-      return this.finish('copied_only_target_missing', '校正結果をコピーしました', 'target_not_found');
+      return this.finish('clipboard_only', '校正結果をコピーしました', 'target_not_found');
     }
 
     const permissionStatus = await this.permissionService.getStatus();
     if (!permissionStatus.accessibilityTrusted) {
       return this.finish(
-        'copied_only_permission_missing',
+        'clipboard_only',
         '校正結果をコピーしました。アクセシビリティ権限を許可すると自動貼り付けできます',
         'permission_missing'
       );
@@ -66,12 +66,9 @@ export class PasteBackService {
         }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 450));
 
-      const frontmostApp = await this.automationHelperClient.runCommand<FrontmostAppInfo>(['frontmost-app']);
-      const matchesTarget = this.targetApp.processId > 0
-        ? frontmostApp.processId === this.targetApp.processId || frontmostApp.bundleId === this.targetApp.bundleId
-        : frontmostApp.bundleId === this.targetApp.bundleId;
+      const matchesTarget = await this.isTargetFrontmost();
 
       if (!matchesTarget) {
         return this.handleFailure('target_not_frontmost', '元のアプリを前面化できませんでした', fallbackToClipboardOnly);
@@ -95,11 +92,10 @@ export class PasteBackService {
     fallbackToClipboardOnly?: boolean
   ): PasteBackResult {
     if (fallbackToClipboardOnly) {
-      const status = details === 'permission_missing' ? 'copied_only_permission_missing' : 'copied_only_target_missing';
-      return this.finish(status, message ?? '校正結果をコピーしました。手動で貼り付けてください', details);
+      return this.finish('clipboard_only', message ?? '校正結果をコピーしました。手動で貼り付けてください', details);
     }
 
-    return this.finish('paste_failed', message ?? '自動貼り付けに失敗しました', details);
+    return this.finish('correction_failed', message ?? '自動貼り付けに失敗しました', details);
   }
 
   private finish(
@@ -109,6 +105,19 @@ export class PasteBackService {
   ): PasteBackResult {
     this.showNotification(message);
     return { status, message, details };
+  }
+
+  private async isTargetFrontmost(): Promise<boolean> {
+    const frontmostApp = await this.automationHelperClient.runCommand<FrontmostAppInfo>(['frontmost-app']);
+    return this.targetAppMatches(frontmostApp);
+  }
+
+  private targetAppMatches(frontmostApp: FrontmostAppInfo): boolean {
+    if (!this.targetApp) return false;
+
+    return this.targetApp.processId > 0
+      ? frontmostApp.processId === this.targetApp.processId || frontmostApp.bundleId === this.targetApp.bundleId
+      : frontmostApp.bundleId === this.targetApp.bundleId;
   }
 
   private showNotification(body: string): void {
