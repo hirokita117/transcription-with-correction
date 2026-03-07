@@ -8,21 +8,49 @@ import type {
   Settings,
   TranscriptionResult,
   VoiceInputStatus,
+  FrontmostAppInfo,
+  OverlayState,
 } from '../shared/types';
 import { ConfigManager } from './services/config-manager';
 import { LLMService } from './services/llm/llm-service';
 import { SpeechService } from './services/speech-service';
+import { FrontmostAppService } from './services/frontmost-app-service';
+import { PasteBackService } from './services/paste-back-service';
+import { PermissionService } from './services/permission-service';
+import { ResidentModeService } from './services/resident-mode-service';
+import { VoiceOverlayService } from './services/voice-overlay-service';
 
 export class IPCHandler {
   private configManager: ConfigManager;
   private llmService: LLMService;
   private speechService: SpeechService;
+  private frontmostAppService: FrontmostAppService;
+  private pasteBackService: PasteBackService;
+  private permissionService: PermissionService;
+  private residentModeService: ResidentModeService;
+  private voiceOverlayService: VoiceOverlayService;
   private currentShortcut: string | null = null;
+  private latestSettings: Settings;
 
-  constructor(configManager: ConfigManager, llmService: LLMService, speechService: SpeechService) {
+  constructor(
+    configManager: ConfigManager,
+    llmService: LLMService,
+    speechService: SpeechService,
+    frontmostAppService: FrontmostAppService,
+    pasteBackService: PasteBackService,
+    permissionService: PermissionService,
+    residentModeService: ResidentModeService,
+    voiceOverlayService: VoiceOverlayService
+  ) {
     this.configManager = configManager;
     this.llmService = llmService;
     this.speechService = speechService;
+    this.frontmostAppService = frontmostAppService;
+    this.pasteBackService = pasteBackService;
+    this.permissionService = permissionService;
+    this.residentModeService = residentModeService;
+    this.voiceOverlayService = voiceOverlayService;
+    this.latestSettings = this.configManager.load();
 
     this.speechService.on('transcription', (result: TranscriptionResult) => {
       this.sendToRenderer('voice-transcription-result', result);
@@ -30,11 +58,14 @@ export class IPCHandler {
 
     this.speechService.on('status-change', (status: VoiceInputStatus) => {
       this.sendToRenderer('voice-input-status-change', status);
+      void this.residentModeService.refreshMenu();
+      void this.syncOverlayWithVoiceStatus(status);
     });
 
     this.speechService.on('error', (error: { code: string; message: string }) => {
       this.sendToRenderer('voice-input-status-change', 'error' as VoiceInputStatus);
       console.error('[SpeechService error]', error);
+      void this.voiceOverlayService.showForError(error.message);
     });
   }
 
@@ -54,7 +85,10 @@ export class IPCHandler {
     ipcMain.handle('save-settings', async (_event, settings: Settings) => {
       this.configManager.save(settings);
       this.llmService.updateSettings(settings);
+      this.latestSettings = settings;
       this.registerVoiceShortcut(settings.voiceInput.shortcut);
+      await this.residentModeService.setEnabled(settings.residentMode.enabled);
+      this.residentModeService.applyDockVisibility(settings.residentMode.showDockIcon);
     });
 
     ipcMain.handle('get-correction-history', async () => {
@@ -81,6 +115,27 @@ export class IPCHandler {
     ipcMain.handle('stop-voice-input', async () => {
       this.speechService.stop();
     });
+
+    ipcMain.handle('paste-corrected-text', async (_event, text: string) => {
+      const settings = this.configManager.load();
+      return this.pasteBackService.pasteText(text, settings.pasteBack.fallbackToClipboardOnly);
+    });
+
+    ipcMain.handle('get-permission-status', async () => {
+      return this.permissionService.getStatus();
+    });
+
+    ipcMain.handle('open-accessibility-settings', async () => {
+      await this.permissionService.openAccessibilitySettings();
+    });
+
+    ipcMain.handle('update-overlay-state', async (_event, state: OverlayState) => {
+      await this.voiceOverlayService.update(state);
+    });
+
+    ipcMain.handle('dismiss-overlay', async () => {
+      this.voiceOverlayService.dismiss();
+    });
   }
 
   registerVoiceShortcut(shortcut: string): void {
@@ -93,7 +148,13 @@ export class IPCHandler {
 
     try {
       const registered = globalShortcut.register(shortcut, () => {
-        this.bringAppToFront();
+        if (this.latestSettings.residentMode.enabled) {
+          void this.captureFrontmostApp();
+          void this.voiceOverlayService.showForRecording();
+        } else {
+          this.bringAppToFront();
+          this.pasteBackService.clearTargetApp();
+        }
         this.sendToRenderer('voice-input-shortcut');
       });
 
@@ -113,6 +174,8 @@ export class IPCHandler {
       this.currentShortcut = null;
     }
     this.speechService.destroy();
+    this.residentModeService.destroy();
+    this.voiceOverlayService.destroy();
   }
 
   private sendToRenderer(channel: string, ...args: unknown[]): void {
@@ -139,8 +202,6 @@ export class IPCHandler {
 
     app.focus({ steal: true });
     targetWindow.focus();
-
-    // Some desktop environments require a short always-on-top toggle for reliable foregrounding.
     targetWindow.setAlwaysOnTop(true);
     targetWindow.setAlwaysOnTop(false);
   }
@@ -174,5 +235,35 @@ export class IPCHandler {
 
     await writeFile(result.filePath, content, 'utf8');
     return { success: true, path: result.filePath };
+  }
+
+  private async captureFrontmostApp(): Promise<FrontmostAppInfo | null> {
+    const appInfo = await this.frontmostAppService.getFrontmostApp();
+    if (!appInfo || appInfo.name === app.getName()) {
+      this.pasteBackService.clearTargetApp();
+      return null;
+    }
+
+    this.pasteBackService.setTargetApp(appInfo);
+    return appInfo;
+  }
+
+  private async syncOverlayWithVoiceStatus(status: VoiceInputStatus): Promise<void> {
+    if (!this.latestSettings.residentMode.enabled) return;
+
+    if (status === 'starting' || status === 'stopping') {
+      await this.voiceOverlayService.showForTranscribing();
+      return;
+    }
+
+    if (status === 'listening') {
+      await this.voiceOverlayService.showForRecording();
+      return;
+    }
+
+    if (status === 'error') {
+      await this.voiceOverlayService.showForError('音声入力の開始に失敗しました');
+      return;
+    }
   }
 }

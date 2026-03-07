@@ -36,6 +36,14 @@ const DEFAULT_SETTINGS: Settings = {
     autoCorrect: true,
     language: 'ja-JP',
   },
+  residentMode: {
+    enabled: true,
+    showDockIcon: true,
+  },
+  pasteBack: {
+    enabled: true,
+    fallbackToClipboardOnly: true,
+  },
 };
 
 export class ConfigManager {
@@ -80,6 +88,14 @@ export class ConfigManager {
       voiceInput: {
         ...DEFAULT_SETTINGS.voiceInput,
         ...stored?.voiceInput,
+      },
+      residentMode: {
+        ...DEFAULT_SETTINGS.residentMode,
+        ...stored?.residentMode,
+      },
+      pasteBack: {
+        ...DEFAULT_SETTINGS.pasteBack,
+        ...stored?.pasteBack,
       },
     };
   }

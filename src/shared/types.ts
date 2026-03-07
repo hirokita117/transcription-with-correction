@@ -16,12 +16,24 @@ export interface VoiceInputConfig {
   language: string;
 }
 
+export interface ResidentModeConfig {
+  enabled: boolean;
+  showDockIcon: boolean;
+}
+
+export interface PasteBackConfig {
+  enabled: boolean;
+  fallbackToClipboardOnly: boolean;
+}
+
 export interface Settings {
   activeProvider: ProviderType;
   lmStudio: LMStudioConfig;
   gemini: GeminiConfig;
   promptTemplate: string;
   voiceInput: VoiceInputConfig;
+  residentMode: ResidentModeConfig;
+  pasteBack: PasteBackConfig;
 }
 
 export type VoiceInputStatus = 'idle' | 'starting' | 'listening' | 'stopping' | 'error';
@@ -39,6 +51,12 @@ export interface TranscriptionResult {
   text: string;
   isFinal: boolean;
   timestamp: string;
+}
+
+export interface FrontmostAppInfo {
+  bundleId: string;
+  name: string;
+  processId: number;
 }
 
 export type SpeechHelperMessageType = 'result' | 'error' | 'status';
@@ -135,6 +153,37 @@ export interface BootstrapData {
   needsSetup: boolean;
 }
 
+export type PasteBackStatus =
+  | 'pasted'
+  | 'copied_only_permission_missing'
+  | 'copied_only_target_missing'
+  | 'paste_failed';
+
+export interface PasteBackResult {
+  status: PasteBackStatus;
+  message?: string;
+  details?: 'permission_missing' | 'target_not_found' | 'activation_failed' | 'target_not_frontmost' | 'paste_failed';
+}
+
+export interface PermissionStatus {
+  accessibilityTrusted: boolean;
+  automationAvailable?: boolean;
+}
+
+export type OverlayPhase =
+  | 'recording'
+  | 'transcribing'
+  | 'correcting'
+  | 'success'
+  | 'fallback'
+  | 'error';
+
+export interface OverlayState {
+  visible: boolean;
+  phase: OverlayPhase;
+  message: string;
+}
+
 export interface ValidationError {
   field: string;
   message: string;
@@ -156,9 +205,15 @@ export interface ElectronAPI {
   trackEvent(event: AnalyticsEvent): Promise<void>;
   startVoiceInput(): Promise<void>;
   stopVoiceInput(): Promise<void>;
+  pasteCorrectedText(text: string): Promise<PasteBackResult>;
+  getPermissionStatus(): Promise<PermissionStatus>;
+  openAccessibilitySettings(): Promise<void>;
+  updateOverlayState(state: OverlayState): Promise<void>;
+  dismissOverlay(): Promise<void>;
   onTranscriptionResult(callback: (result: TranscriptionResult) => void): () => void;
   onVoiceInputStatusChange(callback: (status: VoiceInputStatus) => void): () => void;
   onVoiceInputShortcut(callback: () => void): () => void;
+  onOverlayStateChange(callback: (state: OverlayState) => void): () => void;
 }
 
 declare global {

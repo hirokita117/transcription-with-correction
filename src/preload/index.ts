@@ -7,6 +7,9 @@ import type {
   CorrectionResponse,
   ExportCorrectionPayload,
   ExportCorrectionResponse,
+  OverlayState,
+  PasteBackResult,
+  PermissionStatus,
   Settings,
   TranscriptionResult,
   VoiceInputStatus,
@@ -43,6 +46,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopVoiceInput: (): Promise<void> => {
     return ipcRenderer.invoke('stop-voice-input');
   },
+  pasteCorrectedText: (text: string): Promise<PasteBackResult> => {
+    return ipcRenderer.invoke('paste-corrected-text', text);
+  },
+  getPermissionStatus: (): Promise<PermissionStatus> => {
+    return ipcRenderer.invoke('get-permission-status');
+  },
+  openAccessibilitySettings: (): Promise<void> => {
+    return ipcRenderer.invoke('open-accessibility-settings');
+  },
+  updateOverlayState: (state: OverlayState): Promise<void> => {
+    return ipcRenderer.invoke('update-overlay-state', state);
+  },
+  dismissOverlay: (): Promise<void> => {
+    return ipcRenderer.invoke('dismiss-overlay');
+  },
   onTranscriptionResult: (callback: (result: TranscriptionResult) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, result: TranscriptionResult) => {
       callback(result);
@@ -68,6 +86,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('voice-input-shortcut', handler);
     return () => {
       ipcRenderer.removeListener('voice-input-shortcut', handler);
+    };
+  },
+  onOverlayStateChange: (callback: (state: OverlayState) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: OverlayState) => {
+      callback(state);
+    };
+    ipcRenderer.on('overlay-state-change', handler);
+    return () => {
+      ipcRenderer.removeListener('overlay-state-change', handler);
     };
   },
 });

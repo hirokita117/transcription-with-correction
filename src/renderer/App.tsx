@@ -4,6 +4,9 @@ import type {
   CorrectionError,
   CorrectionHistoryItem,
   CorrectionLifecycleStatus,
+  OverlayState,
+  PasteBackResult,
+  PermissionStatus,
   Settings,
   UIToast,
 } from '../shared/types';
@@ -19,6 +22,23 @@ import { QuickActionsBar } from './components/quick-actions-bar';
 import { CorrectionHistoryPanel } from './components/correction-history-panel';
 
 type CorrectionTrigger = 'manual' | 'auto';
+
+function buildPasteBackMessage(result: PasteBackResult): string {
+  switch (result.details) {
+    case 'permission_missing':
+      return 'アクセシビリティ権限が未許可のため、自動貼り付けできませんでした。結果はコピー済みです。';
+    case 'activation_failed':
+      return '元のアプリへ戻れなかったため、コピーのみ行いました。';
+    case 'target_not_frontmost':
+      return '元のアプリを前面化できなかったため、コピーのみ行いました。';
+    case 'paste_failed':
+      return '貼り付けキー送出に失敗したため、コピーのみ行いました。';
+    case 'target_not_found':
+      return '貼り付け先を見つけられなかったため、コピーのみ行いました。';
+    default:
+      return result.message ?? (result.status === 'pasted' ? '校正して貼り付けました。' : '校正結果をコピーしました。');
+  }
+}
 
 function formatShortcutLabel(shortcut: string): string {
   return shortcut
@@ -56,6 +76,8 @@ export function App() {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [history, setHistory] = useState<CorrectionHistoryItem[]>([]);
   const [toasts, setToasts] = useState<UIToast[]>([]);
+  const [pasteBackResult, setPasteBackResult] = useState<PasteBackResult | null>(null);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({ accessibilityTrusted: false });
 
   const pushToast = useCallback((toast: Omit<UIToast, 'id'>) => {
     const id = window.crypto.randomUUID();
@@ -70,17 +92,23 @@ export function App() {
     await window.electronAPI.trackEvent(event);
   }, []);
 
+  const updateOverlayState = useCallback(async (state: OverlayState) => {
+    await window.electronAPI.updateOverlayState(state);
+  }, []);
+
   useEffect(() => {
     const bootstrap = async () => {
-      const [bootstrapData, loadedHistory] = await Promise.all([
+      const [bootstrapData, loadedHistory, latestPermissionStatus] = await Promise.all([
         window.electronAPI.getBootstrapData(),
         window.electronAPI.getCorrectionHistory(),
+        window.electronAPI.getPermissionStatus(),
       ]);
 
       setSettings(bootstrapData.settings);
       setIsFirstRun(bootstrapData.isFirstRun);
       setNeedsSetup(bootstrapData.needsSetup);
       setHistory(loadedHistory);
+      setPermissionStatus(latestPermissionStatus);
     };
 
     void bootstrap();
@@ -133,6 +161,7 @@ export function App() {
 
     setIsLoading(true);
     setError(null);
+    await updateOverlayState({ visible: true, phase: 'correcting', message: 'テキストを整えています' });
 
     await trackEvent({
       name: 'correction_started',
@@ -159,6 +188,7 @@ export function App() {
         };
 
         await saveHistoryItem(historyItem);
+
         let autoCopySucceeded = false;
         try {
           await navigator.clipboard.writeText(response.correctedText);
@@ -168,11 +198,13 @@ export function App() {
           console.error('Failed to auto-copy corrected text:', clipboardError);
           pushToast({ type: 'info', message: '校正は完了しましたが、自動コピーに失敗しました。' });
         }
+
         await trackEvent({
           name: 'correction_succeeded',
           timestamp: historyItem.createdAt,
           metadata: { trigger, provider: settings.activeProvider },
         });
+
         if (autoCopySucceeded) {
           await trackEvent({
             name: 'result_copied',
@@ -180,10 +212,37 @@ export function App() {
             metadata: { source: 'auto-copy', provider: settings.activeProvider },
           });
         }
+
+        if (settings.pasteBack.enabled) {
+          const pasteResult = await window.electronAPI.pasteCorrectedText(response.correctedText);
+          const message = buildPasteBackMessage(pasteResult);
+          const normalizedPasteResult = { ...pasteResult, message };
+          setPasteBackResult(normalizedPasteResult);
+          const latestPermissionStatus = await window.electronAPI.getPermissionStatus();
+          setPermissionStatus(latestPermissionStatus);
+          pushToast({ type: pasteResult.status === 'pasted' ? 'success' : 'info', message });
+          await updateOverlayState({
+            visible: true,
+            phase: pasteResult.status === 'pasted' ? 'success' : 'fallback',
+            message,
+          });
+        } else {
+          setPasteBackResult(null);
+          await updateOverlayState({
+            visible: true,
+            phase: 'success',
+            message: '校正結果をコピーしました',
+          });
+        }
       } else if (response.error) {
         setError(response.error);
         setNeedsSetup(response.error.type === 'PROVIDER_NOT_CONFIGURED');
         pushToast({ type: 'error', message: response.error.message });
+        await updateOverlayState({
+          visible: true,
+          phase: 'error',
+          message: response.error.message,
+        });
         await trackEvent({
           name: response.error.type === 'PROVIDER_NOT_CONFIGURED' ? 'provider_validation_failed' : 'correction_failed',
           timestamp: new Date().toISOString(),
@@ -194,6 +253,11 @@ export function App() {
       console.error('Correction request failed:', caughtError);
       setError({ type: 'UNKNOWN_ERROR', message: '校正処理中にエラーが発生しました。しばらく待ってからもう一度お試しください。' });
       pushToast({ type: 'error', message: '校正処理に失敗しました。' });
+      await updateOverlayState({
+        visible: true,
+        phase: 'error',
+        message: '校正処理に失敗しました',
+      });
       await trackEvent({
         name: 'correction_failed',
         timestamp: new Date().toISOString(),
@@ -202,7 +266,7 @@ export function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, pushToast, saveHistoryItem, settings, trackEvent]);
+  }, [inputText, pushToast, saveHistoryItem, settings, trackEvent, updateOverlayState]);
 
   const { status: voiceStatus, volatileText, toggleVoiceInput } = useVoiceInput({
     autoCorrectEnabled: settings?.voiceInput?.autoCorrect ?? true,
@@ -229,14 +293,30 @@ export function App() {
     toggleVoiceInput();
   }, [settings?.voiceInput.autoCorrect, toggleVoiceInput, trackEvent, voiceStatus]);
 
+  useEffect(() => {
+    if (voiceStatus !== 'idle') return;
+    if (settings?.voiceInput.autoCorrect ?? true) return;
+    if (isLoading) return;
+
+    void window.electronAPI.dismissOverlay();
+  }, [isLoading, settings?.voiceInput.autoCorrect, voiceStatus]);
+
   const handleSaveSettings = useCallback(async (newSettings: Settings) => {
     await window.electronAPI.saveSettings(newSettings);
     setSettings(newSettings);
+    const latestPermissionStatus = await window.electronAPI.getPermissionStatus();
+    setPermissionStatus(latestPermissionStatus);
     setIsSettingsOpen(false);
     setIsFirstRun(false);
     setNeedsSetup(false);
     pushToast({ type: 'success', message: '設定を保存しました。' });
   }, [pushToast]);
+
+  const handleOpenAccessibilitySettings = useCallback(async () => {
+    await window.electronAPI.openAccessibilitySettings();
+    const latestPermissionStatus = await window.electronAPI.getPermissionStatus();
+    setPermissionStatus(latestPermissionStatus);
+  }, []);
 
   const handleCopyInput = useCallback(async () => {
     await copyToClipboard(inputText, '入力テキストをコピーしました。', { source: 'input', hasResult: Boolean(correctedText) });
@@ -326,6 +406,18 @@ export function App() {
           hasResult={correctedText.length > 0}
           autoCorrectEnabled={settings?.voiceInput.autoCorrect ?? true}
         />
+
+        {pasteBackResult && (
+          <div className="flex items-center justify-between rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+            <span>{pasteBackResult.message}</span>
+            <button
+              className="rounded-full border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
+              onClick={() => setPasteBackResult(null)}
+            >
+              閉じる
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="flex flex-col gap-3 rounded-[2rem] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-900 lg:flex-row lg:items-center lg:justify-between">
@@ -432,6 +524,8 @@ export function App() {
           onClose={() => setIsSettingsOpen(false)}
           settings={settings}
           onSave={handleSaveSettings}
+          permissionStatus={permissionStatus}
+          onOpenAccessibilitySettings={handleOpenAccessibilitySettings}
         />
       )}
     </div>

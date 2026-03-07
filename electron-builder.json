@@ -12,6 +12,10 @@
     {
       "from": "swift-helper/SpeechHelper/.build/release/SpeechHelper",
       "to": "SpeechHelper"
+    },
+    {
+      "from": "swift-helper/SpeechHelper/.build/release/AutomationHelper",
+      "to": "AutomationHelper"
     }
   ],
   "mac": {
@@ -21,7 +25,8 @@
     "entitlementsInherit": "build/entitlements.mac.plist",
     "extendInfo": {
       "NSMicrophoneUsageDescription": "音声入力機能でマイクを使用します。",
-      "NSSpeechRecognitionUsageDescription": "音声認識機能を使用して文字起こしを行います。"
+      "NSSpeechRecognitionUsageDescription": "音声認識機能を使用して文字起こしを行います。",
+      "NSAppleEventsUsageDescription": "直前に使用していたアプリへ戻り、校正結果を貼り付けるために使用します。"
     }
   }
 }

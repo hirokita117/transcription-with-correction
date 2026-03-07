@@ -17,6 +17,10 @@ body {
   color: #1c1917;
 }
 
+body.overlay-window {
+  background: transparent;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import type { Settings, ProviderType, ValidationError } from '../../shared/types';
+import type { Settings, ProviderType, ValidationError, PermissionStatus } from '../../shared/types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: Settings;
   onSave: (settings: Settings) => void;
+  permissionStatus: PermissionStatus;
+  onOpenAccessibilitySettings: () => void;
 }
 
 const DEFAULT_PROMPT_TEMPLATE = `あなたはプロフェッショナルな校正者です。
@@ -19,7 +21,14 @@ const DEFAULT_PROMPT_TEMPLATE = `あなたはプロフェッショナルな校�
 テキスト:
 {text}`;
 
-export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
+export function SettingsModal({
+  isOpen,
+  onClose,
+  settings,
+  onSave,
+  permissionStatus,
+  onOpenAccessibilitySettings,
+}: SettingsModalProps) {
   const [localSettings, setLocalSettings] = useState<Settings>(settings);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
@@ -243,6 +252,99 @@ export function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsMod
                 />
                 <span className="text-sm">音声入力完了後に自動校正を実行</span>
               </label>
+            </div>
+          </div>
+
+          <div className="mb-6 space-y-3">
+            <label className="text-sm font-medium text-gray-700 block mb-2">常駐と自動貼り付け</label>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.residentMode.enabled}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      residentMode: { ...localSettings.residentMode, enabled: e.target.checked },
+                    })
+                  }
+                  className="text-blue-600"
+                />
+                <span className="text-sm">メニューバーに常駐する</span>
+              </label>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.residentMode.showDockIcon}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      residentMode: { ...localSettings.residentMode, showDockIcon: e.target.checked },
+                    })
+                  }
+                  className="text-blue-600"
+                />
+                <span className="text-sm">Dock アイコンを表示する</span>
+              </label>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.pasteBack.enabled}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      pasteBack: { ...localSettings.pasteBack, enabled: e.target.checked },
+                    })
+                  }
+                  className="text-blue-600"
+                />
+                <span className="text-sm">校正完了後に元のアプリへ自動貼り付け</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                元のアプリのカーソル位置に `Cmd+V` 相当で貼り付けます
+              </p>
+            </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.pasteBack.fallbackToClipboardOnly}
+                  onChange={(e) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      pasteBack: {
+                        ...localSettings.pasteBack,
+                        fallbackToClipboardOnly: e.target.checked,
+                      },
+                    })
+                  }
+                  className="text-blue-600"
+                />
+                <span className="text-sm">権限不足時はコピーのみにフォールバック</span>
+              </label>
+            </div>
+            <div className="rounded border border-gray-200 bg-gray-50 px-3 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">アクセシビリティ権限</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {permissionStatus.accessibilityTrusted
+                      ? '許可済みです。自動貼り付けを利用できます。'
+                      : '未許可です。未許可時は結果をコピーのみ行います。'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-100"
+                  onClick={onOpenAccessibilitySettings}
+                >
+                  アクセシビリティ設定を開く
+                </button>
+              </div>
             </div>
           </div>
 
