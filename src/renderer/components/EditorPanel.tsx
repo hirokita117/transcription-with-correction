@@ -39,18 +39,31 @@ export function EditorPanel({
   const isCorrectionDisabled = isLoading || isVoiceActive;
 
   return (
-    <div className="flex-1 flex flex-col border-r border-gray-200 p-4">
-      <label className="text-sm font-medium text-gray-700 mb-2">入力テキスト</label>
+    <section className="flex flex-1 flex-col rounded-[2rem] border border-stone-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Capture</p>
+          <label className="mt-2 block text-lg font-semibold text-stone-900">入力テキスト</label>
+          <p className="mt-1 text-sm text-stone-600">音声入力または手入力で下書きを作り、すぐに校正へ進めます。</p>
+        </div>
+        <div className="rounded-2xl bg-stone-100 px-3 py-2 text-right text-xs text-stone-500">
+          <div>音声入力: {shortcutLabel}</div>
+          <div>校正: Cmd+Enter</div>
+        </div>
+      </div>
       <textarea
-        className="flex-1 w-full resize-none border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        placeholder="ここにテキストを入力してください..."
+        className="min-h-[16rem] flex-1 w-full resize-none rounded-[1.5rem] border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-800 outline-none transition focus:border-stone-400 focus:bg-white"
+        placeholder="ここにテキストを入力するか、音声入力を開始してください..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
       {volatileText && (
-        <p className="text-gray-400 italic text-sm mt-1 px-1">{volatileText}</p>
+        <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Live Transcript</p>
+          <p className="mt-2 text-sm italic text-sky-900">{volatileText}</p>
+        </div>
       )}
-      <div className="flex gap-2 mt-3">
+      <div className="mt-4 flex flex-wrap gap-2">
         <VoiceButton
           status={voiceStatus}
           onClick={onToggleVoice}
@@ -58,14 +71,14 @@ export function EditorPanel({
           shortcutLabel={shortcutLabel}
         />
         <button
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
           onClick={handleCopy}
           disabled={!canCopy}
         >
           {copied ? 'コピー完了' : 'コピー'}
         </button>
         <button
-          className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="flex items-center gap-2 rounded-full bg-stone-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
           onClick={() => onCorrect()}
           disabled={isCorrectionDisabled}
         >
@@ -79,6 +92,6 @@ export function EditorPanel({
           )}
         </button>
       </div>
-    </div>
+    </section>
   );
 }

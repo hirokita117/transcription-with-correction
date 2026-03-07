@@ -1,5 +1,13 @@
 import Store from 'electron-store';
-import type { Settings, ValidationResult, ValidationError, ProviderType } from '../../shared/types';
+import type {
+  AnalyticsEvent,
+  BootstrapData,
+  CorrectionHistoryItem,
+  Settings,
+  ValidationResult,
+  ValidationError,
+  ProviderType,
+} from '../../shared/types';
 
 const DEFAULT_PROMPT_TEMPLATE = `あなたはプロフェッショナルな校正者です。
 以下のテキストの誤字脱字・文法エラーを修正してください。
@@ -31,11 +39,19 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export class ConfigManager {
-  private store: Store<{ settings: Settings }>;
+  private store: Store<{
+    settings?: Settings;
+    correctionHistory?: CorrectionHistoryItem[];
+    analyticsEvents?: AnalyticsEvent[];
+  }>;
   private envConfig: Partial<Settings>;
 
   constructor() {
-    this.store = new Store<{ settings: Settings }>({
+    this.store = new Store<{
+      settings?: Settings;
+      correctionHistory?: CorrectionHistoryItem[];
+      analyticsEvents?: AnalyticsEvent[];
+    }>({
       name: 'transcription-correction-settings',
     });
     this.envConfig = {};
@@ -70,6 +86,33 @@ export class ConfigManager {
 
   save(settings: Settings): void {
     this.store.set('settings', settings);
+  }
+
+  getBootstrapData(): BootstrapData {
+    const settings = this.load();
+    const validation = this.validate(settings);
+
+    return {
+      settings,
+      isFirstRun: !this.store.has('settings'),
+      needsSetup: !validation.valid,
+    };
+  }
+
+  getCorrectionHistory(): CorrectionHistoryItem[] {
+    return this.store.get('correctionHistory') ?? [];
+  }
+
+  saveCorrectionHistoryItem(item: CorrectionHistoryItem): void {
+    const current = this.getCorrectionHistory();
+    const next = [item, ...current].slice(0, 20);
+    this.store.set('correctionHistory', next);
+  }
+
+  trackEvent(event: AnalyticsEvent): void {
+    const current = this.store.get('analyticsEvents') ?? [];
+    const next = [...current, event].slice(-200);
+    this.store.set('analyticsEvents', next);
   }
 
   validate(settings: Settings): ValidationResult {

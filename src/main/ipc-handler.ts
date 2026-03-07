@@ -1,5 +1,14 @@
-import { ipcMain, globalShortcut, BrowserWindow, app } from 'electron';
-import type { CorrectionRequest, Settings, TranscriptionResult, VoiceInputStatus } from '../shared/types';
+import { ipcMain, globalShortcut, BrowserWindow, app, dialog } from 'electron';
+import { writeFile } from 'fs/promises';
+import type {
+  AnalyticsEvent,
+  CorrectionRequest,
+  CorrectionHistoryItem,
+  ExportCorrectionPayload,
+  Settings,
+  TranscriptionResult,
+  VoiceInputStatus,
+} from '../shared/types';
 import { ConfigManager } from './services/config-manager';
 import { LLMService } from './services/llm/llm-service';
 import { SpeechService } from './services/speech-service';
@@ -34,6 +43,10 @@ export class IPCHandler {
       return this.llmService.correct(request);
     });
 
+    ipcMain.handle('get-bootstrap-data', async () => {
+      return this.configManager.getBootstrapData();
+    });
+
     ipcMain.handle('get-settings', async () => {
       return this.configManager.load();
     });
@@ -42,6 +55,22 @@ export class IPCHandler {
       this.configManager.save(settings);
       this.llmService.updateSettings(settings);
       this.registerVoiceShortcut(settings.voiceInput.shortcut);
+    });
+
+    ipcMain.handle('get-correction-history', async () => {
+      return this.configManager.getCorrectionHistory();
+    });
+
+    ipcMain.handle('save-correction-history-item', async (_event, item: CorrectionHistoryItem) => {
+      this.configManager.saveCorrectionHistoryItem(item);
+    });
+
+    ipcMain.handle('export-correction-result', async (_event, payload: ExportCorrectionPayload) => {
+      return this.exportCorrectionResult(payload);
+    });
+
+    ipcMain.handle('track-event', async (_event, event: AnalyticsEvent) => {
+      this.configManager.trackEvent(event);
     });
 
     ipcMain.handle('start-voice-input', async () => {
@@ -114,5 +143,36 @@ export class IPCHandler {
     // Some desktop environments require a short always-on-top toggle for reliable foregrounding.
     targetWindow.setAlwaysOnTop(true);
     targetWindow.setAlwaysOnTop(false);
+  }
+
+  private async exportCorrectionResult(payload: ExportCorrectionPayload): Promise<{
+    success: boolean;
+    path?: string;
+    error?: string;
+  }> {
+    const focusedWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    const defaultExtension = payload.format === 'md' ? 'md' : 'txt';
+    const defaultPath = `correction-${new Date().toISOString().replace(/[:.]/g, '-')}.${defaultExtension}`;
+
+    const result = await dialog.showSaveDialog(focusedWindow ?? undefined, {
+      defaultPath,
+      filters: [
+        {
+          name: payload.format === 'md' ? 'Markdown' : 'Text',
+          extensions: [defaultExtension],
+        },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: '保存をキャンセルしました' };
+    }
+
+    const content = payload.format === 'md'
+      ? `# 校正結果\n\n## 原文\n\n${payload.inputText}\n\n## 校正文\n\n${payload.correctedText}\n`
+      : `原文:\n${payload.inputText}\n\n校正文:\n${payload.correctedText}\n`;
+
+    await writeFile(result.filePath, content, 'utf8');
+    return { success: true, path: result.filePath };
   }
 }
