@@ -2,26 +2,28 @@
 
 音声入力（ディクテーション）の文字起こしを LLM で校正してくれる Electron デスクトップアプリです。
 
-macOS のディクテーション機能などで入力したテキストの誤字脱字・文法エラーを、LM Studio や Google Gemini を使って自動校正します。
+macOS のメニューバーに常駐し、グローバルショートカットで音声入力を開始。認識テキストを LM Studio や Google Gemini で自動校正し、元のアプリへ結果をペーストするところまでを一括で行います。
 
 ## 主な機能
 
-- テキスト入力エリアと校正結果エリアの2ペイン構成
-- **音声入力**: マイクから直接テキストを入力（macOS ネイティブ音声認識を使用）
-  - 逐次テキスト表示（認識中のテキストをリアルタイム表示）
-  - 音声入力完了後の自動校正（設定で ON/OFF 可能）
-  - グローバルショートカットキーでトグル（デフォルト: `Cmd+Shift+L`）
-- LLM プロバイダーの選択（LM Studio / Gemini）
-- 校正プロンプトテンプレートのカスタマイズ
-- 校正結果のクリップボードコピー（校正完了時に自動コピー + 手動コピー）
-- 設定の永続化（electron-store）
+- **トレイ常駐モード**: メニューバーに常駐し、Dock を非表示にして動作
+- **音声入力**: グローバルショートカット（デフォルト: `Cmd+Shift+L`）で音声入力ウィンドウを表示
+  - macOS ネイティブ音声認識（SFSpeechRecognizer）を使用
+  - 認識中のテキストをリアルタイム表示（Live Transcript）
+  - 音声入力完了後の自動校正
+- **自動ペースト**: 校正完了後、元のアプリにフォーカスを戻し結果をペースト（アクセシビリティ権限が必要）
+  - ペースト失敗時はクリップボードコピーにフォールバック
+- **LLM プロバイダーの選択**: LM Studio（ローカル）/ Google Gemini
+- **校正プロンプトのカスタマイズ**: 設定画面からプロンプトテンプレートを編集可能
+- **設定の永続化**: electron-store で設定を保存
 
 ## 必要環境
 
 - **macOS 15.0 (Sequoia) 以上**（音声入力機能に必要）
 - Node.js 18 以上
 - npm
-- Swift 6.0 以上（音声入力ヘルパーのビルドに必要、Xcode に同梱）
+- Swift 6.0 以上（音声入力・自動化ヘルパーのビルドに必要、Xcode に同梱）
+- **アクセシビリティ権限**（自動ペースト機能に必要、システム設定から許可）
 - LLM プロバイダー（いずれか1つ）:
   - [LM Studio](https://lmstudio.ai/) — ローカルで LLM を実行
   - [Google Gemini API](https://ai.google.dev/) — API キーが必要
@@ -35,9 +37,6 @@ cd transcription-with-correction
 
 # 依存関係をインストール
 npm install
-
-# Swift 音声入力ヘルパーをビルド
-npm run build:swift
 
 # 環境変数ファイルを作成（任意）
 cp .env.example .env
@@ -76,32 +75,34 @@ Vite の開発サーバーが起動し、Electron アプリが立ち上がりま
 npm run build
 ```
 
-`out/` ディレクトリに macOS 用のアプリケーションバンドルが生成されます。
+Swift ヘルパーのビルドを含む全工程を実行し、`out/` ディレクトリに macOS 用アプリケーションバンドル（.dmg）が生成されます。
 
 ## 使い方
 
-1. **LLM プロバイダーの設定**: 右上の「設定」ボタンから、使用する LLM プロバイダーを選択し接続情報を入力します
+1. **初回起動**: 設定ウィンドウが自動で開きます
+2. **LLM プロバイダーの設定**: 使用する LLM プロバイダーを選択し接続情報を入力
    - **LM Studio**: LM Studio を起動してローカルサーバーを開始した上で、エンドポイント URL を指定
    - **Gemini**: Google AI Studio で取得した API キーを入力
-2. **テキスト入力**: 左パネルに校正したいテキストを入力、または「音声入力」ボタンで音声から入力
-3. **音声入力**: 「音声入力」ボタンをクリック（または `Cmd+Shift+L`）でマイクから音声認識を開始
+3. **アクセシビリティ権限の許可**: 設定画面の案内に従い、システム設定でアクセシビリティ権限を付与（自動ペースト機能に必要）
+4. **音声入力の開始**: 校正先のアプリで入力カーソルを合わせた状態で `Cmd+Shift+L`（または設定したショートカット）を押す
+   - 画面中央に音声入力ウィンドウが表示されます
    - 認識中のテキストがリアルタイムで表示されます
-   - もう一度クリック（または同じショートカット）で停止
-   - 自動校正が有効なら、停止後に自動で校正が実行されます
-4. **校正実行**: 「校正」ボタンをクリック、または `Cmd+Enter`（このアプリがアクティブなら入力欄フォーカス不要）
-5. **結果確認**: 右パネルに校正結果が表示されます。必要に応じて手動で編集も可能
-6. **コピー**: 校正成功時に結果テキストは自動でクリップボードにコピーされます。必要に応じて各パネルの「コピー」ボタンも使えます
+5. **音声入力の停止**: 同じショートカットをもう一度押すか、録音を止めると自動で停止
+6. **自動校正・ペースト**: 停止後、LLM による校正が自動実行され、元のアプリへフォーカスが戻り結果がペーストされます
+   - アクセシビリティ権限がない場合や貼り付けに失敗した場合は、クリップボードにコピーされます
+   - 校正に失敗した場合は音声入力ウィンドウの「再校正」ボタンまたは `Cmd+Enter` で再試行できます
+7. **設定の変更**: メニューバーのアイコンをクリック →「設定を開く」
 
 ## npm スクリプト
 
 | コマンド | 説明 |
 |---------|------|
 | `npm run dev` | 開発モードで起動（ホットリロード対応） |
-| `npm run build` | プロダクションビルド |
+| `npm run build` | プロダクションビルド（Swift ヘルパーのビルドを含む） |
 | `npm test` | ユニットテスト実行 |
 | `npm run test:watch` | テストをウォッチモードで実行 |
 | `npm run lint` | TypeScript 型チェック |
-| `npm run build:swift` | Swift 音声入力ヘルパーをビルド |
+| `npm run build:swift` | Swift ヘルパーのみをビルド |
 
 ## 技術スタック
 
@@ -110,9 +111,10 @@ npm run build
 - **ビルドツール**: Vite + vite-plugin-electron
 - **スタイリング**: Tailwind CSS v4
 - **テスト**: Vitest
-- **状態管理**: React useState
+- **状態管理**: React useState / useReducer
 - **設定永続化**: electron-store
 - **音声認識**: macOS Speech Framework (SFSpeechRecognizer)
+- **自動化**: macOS Accessibility API / Apple Events (AutomationHelper)
 
 ## プロジェクト構成
 
@@ -122,35 +124,44 @@ src/
 │   ├── index.ts             # エントリポイント
 │   ├── ipc-handler.ts       # IPC チャネルハンドラー
 │   └── services/
-│       ├── config-manager.ts    # 設定管理
-│       ├── speech-service.ts    # 音声認識サービス（Swift ヘルパー管理）
+│       ├── config-manager.ts            # 設定管理
+│       ├── dictation-session-service.ts # 音声入力〜校正〜ペーストのセッション管理
+│       ├── resident-mode-service.ts     # トレイ常駐・Dock 表示管理
+│       ├── settings-window-service.ts   # 設定ウィンドウ管理
+│       ├── voice-capture-window-service.ts  # 音声入力ウィンドウ管理
+│       ├── speech-service.ts            # 音声認識サービス（SpeechHelper 管理）
+│       ├── paste-back-service.ts        # 元アプリへの自動ペースト
+│       ├── frontmost-app-service.ts     # 最前面アプリの取得
+│       ├── automation-helper-client.ts  # AutomationHelper プロセス通信
+│       ├── permission-service.ts        # アクセシビリティ権限管理
 │       └── llm/
-│           ├── types.ts             # LLMProvider インターフェース
-│           ├── llm-service.ts       # LLM サービス（Strategy Pattern）
-│           ├── lm-studio-provider.ts  # LM Studio プロバイダー
-│           └── gemini-provider.ts     # Gemini プロバイダー
+│           ├── types.ts                 # LLMProvider インターフェース
+│           ├── llm-service.ts           # LLM サービス（Strategy Pattern）
+│           ├── lm-studio-provider.ts    # LM Studio プロバイダー
+│           └── gemini-provider.ts       # Gemini プロバイダー
 ├── preload/
 │   └── index.ts             # Preload Script（contextBridge）
 ├── renderer/                # Electron Renderer Process (React)
-│   ├── main.tsx             # React エントリポイント
+│   ├── main.tsx             # React エントリポイント（設定 UI / 音声入力 UI を切り替え）
 │   ├── index.css            # グローバルスタイル
-│   ├── App.tsx              # ルートコンポーネント
-│   ├── hooks/
-│   │   └── useVoiceInput.ts     # 音声入力カスタムフック
+│   ├── App.tsx              # 設定ウィンドウ ルートコンポーネント
+│   ├── voice-capture-app.tsx  # 音声入力ウィンドウ ルートコンポーネント
 │   └── components/
-│       ├── Header.tsx           # ヘッダー
-│       ├── EditorPanel.tsx      # 入力パネル（左）
-│       ├── ResultPanel.tsx      # 結果パネル（右）
-│       ├── VoiceButton.tsx      # 音声入力ボタン
-│       └── SettingsModal.tsx    # 設定モーダル
+│       ├── SettingsModal.tsx         # 設定フォーム
+│       └── voice-capture-panel.tsx   # 音声入力 UI パネル
 └── shared/
     └── types.ts             # 共有型定義
-swift-helper/SpeechHelper/   # macOS 音声認識ヘルパー (Swift)
+swift-helper/SpeechHelper/   # macOS 音声認識・自動化ヘルパー (Swift)
 ├── Package.swift
-└── Sources/SpeechHelper/
-    ├── main.swift               # stdin/stdout JSON Lines 処理
-    ├── SpeechRecognizer.swift   # SFSpeechRecognizer ラッパー
-    └── Models.swift             # Codable モデル
+└── Sources/
+    ├── SpeechHelper/            # 音声認識ヘルパー
+    │   ├── App.swift            # stdin/stdout JSON Lines 処理
+    │   ├── SpeechRecognizer.swift  # SFSpeechRecognizer ラッパー
+    │   └── Models.swift         # Codable モデル
+    └── AutomationHelper/        # 自動化ヘルパー（アプリ復帰・ペースト）
+        ├── main.swift           # stdin/stdout JSON Lines 処理
+        ├── AutomationController.swift  # Accessibility API / Apple Events
+        └── Models.swift         # Codable モデル
 tests/                       # ユニットテスト
 ```
 

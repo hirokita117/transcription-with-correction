@@ -50,15 +50,13 @@ enum AutomationController {
     }
 
     static func paste() -> OperationPayload {
-        guard AXIsProcessTrusted() else {
-            return OperationPayload(ok: false, message: "Accessibility permission is not granted")
-        }
-
         let appleScript = """
         tell application "System Events"
             keystroke "v" using command down
         end tell
         """
+
+        var scriptErrorMessage: String?
 
         if let script = NSAppleScript(source: appleScript) {
             var error: NSDictionary?
@@ -66,6 +64,12 @@ enum AutomationController {
             if error == nil {
                 return OperationPayload(ok: true, message: nil)
             }
+
+            scriptErrorMessage = error?[NSAppleScript.errorMessage] as? String
+        }
+
+        guard AXIsProcessTrusted() else {
+            return OperationPayload(ok: false, message: scriptErrorMessage ?? "Accessibility permission is not granted")
         }
 
         guard let source = CGEventSource(stateID: .combinedSessionState),

@@ -1,18 +1,16 @@
+import { systemPreferences } from 'electron';
 import type { PermissionStatus } from '../../shared/types';
 import { AutomationHelperClient } from './automation-helper-client';
-
-interface PermissionHelperResponse {
-  accessibilityTrusted: boolean;
-}
 
 export class PermissionService {
   constructor(private readonly automationHelperClient: AutomationHelperClient) {}
 
   async getStatus(): Promise<PermissionStatus> {
     try {
-      const response = await this.automationHelperClient.runCommand<PermissionHelperResponse>(['permission-status']);
       return {
-        ...response,
+        accessibilityTrusted: process.platform === 'darwin'
+          ? systemPreferences.isTrustedAccessibilityClient(false)
+          : false,
         automationAvailable: true,
       };
     } catch (error) {
@@ -22,6 +20,9 @@ export class PermissionService {
   }
 
   async openAccessibilitySettings(): Promise<void> {
+    if (process.platform === 'darwin') {
+      systemPreferences.isTrustedAccessibilityClient(true);
+    }
     await this.automationHelperClient.runCommand<Record<string, never>>(['open-accessibility-settings']);
   }
 }
