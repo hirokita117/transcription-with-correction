@@ -7,6 +7,19 @@ const createSettings = (overrides?: Partial<Settings>): Settings => ({
   lmStudio: { endpointUrl: 'http://localhost:1234/v1', modelName: 'test-model' },
   gemini: { apiKey: 'test-key', modelName: 'gemini-2.0-flash' },
   promptTemplate: 'Fix: {text}',
+  voiceInput: {
+    shortcut: 'CommandOrControl+Shift+L',
+    autoCorrect: true,
+    language: 'ja-JP',
+  },
+  residentMode: {
+    enabled: true,
+    showDockIcon: true,
+  },
+  pasteBack: {
+    enabled: true,
+    fallbackToClipboardOnly: true,
+  },
   ...overrides,
 });
 

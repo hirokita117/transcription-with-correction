@@ -9,5 +9,9 @@ let package = Package(
             name: "SpeechHelper",
             path: "Sources/SpeechHelper"
         ),
+        .executableTarget(
+            name: "AutomationHelper",
+            path: "Sources/AutomationHelper"
+        ),
     ]
 )

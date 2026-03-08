@@ -16,12 +16,24 @@ export interface VoiceInputConfig {
   language: string;
 }
 
+export interface ResidentModeConfig {
+  enabled: boolean;
+  showDockIcon: boolean;
+}
+
+export interface PasteBackConfig {
+  enabled: boolean;
+  fallbackToClipboardOnly: boolean;
+}
+
 export interface Settings {
   activeProvider: ProviderType;
   lmStudio: LMStudioConfig;
   gemini: GeminiConfig;
   promptTemplate: string;
   voiceInput: VoiceInputConfig;
+  residentMode: ResidentModeConfig;
+  pasteBack: PasteBackConfig;
 }
 
 export type VoiceInputStatus = 'idle' | 'starting' | 'listening' | 'stopping' | 'error';
@@ -39,6 +51,12 @@ export interface TranscriptionResult {
   text: string;
   isFinal: boolean;
   timestamp: string;
+}
+
+export interface FrontmostAppInfo {
+  bundleId: string;
+  name: string;
+  processId: number;
 }
 
 export type SpeechHelperMessageType = 'result' | 'error' | 'status';
@@ -135,6 +153,54 @@ export interface BootstrapData {
   needsSetup: boolean;
 }
 
+export type PasteBackStatus =
+  | 'pasted'
+  | 'clipboard_only'
+  | 'settings_required'
+  | 'correction_failed';
+
+export interface PasteBackResult {
+  status: PasteBackStatus;
+  message?: string;
+  details?: 'permission_missing' | 'target_not_found' | 'activation_failed' | 'target_not_frontmost' | 'paste_failed';
+}
+
+export interface PermissionStatus {
+  accessibilityTrusted: boolean;
+  automationAvailable?: boolean;
+}
+
+export type VoiceSessionPhase =
+  | 'hidden'
+  | 'recording'
+  | 'transcribing'
+  | 'correcting'
+  | 'provider_not_configured'
+  | 'correction_failed'
+  | 'paste_fallback';
+
+export type VoiceSessionErrorCode =
+  | 'provider_not_configured'
+  | 'connection_error'
+  | 'auth_error'
+  | 'api_error'
+  | 'unknown_error'
+  | 'permission_missing'
+  | 'target_not_found'
+  | 'target_not_frontmost'
+  | 'paste_failed';
+
+export interface VoiceSessionViewModel {
+  visible: boolean;
+  phase: VoiceSessionPhase;
+  liveTranscript: string;
+  finalTranscript: string;
+  correctedText?: string;
+  message: string;
+  canRetryCorrection: boolean;
+  errorCode?: VoiceSessionErrorCode;
+}
+
 export interface ValidationError {
   field: string;
   message: string;
@@ -146,19 +212,16 @@ export interface ValidationResult {
 }
 
 export interface ElectronAPI {
-  correctText(request: CorrectionRequest): Promise<CorrectionResponse>;
-  getBootstrapData(): Promise<BootstrapData>;
-  getSettings(): Promise<Settings>;
+  getSettingsWindowData(): Promise<BootstrapData>;
   saveSettings(settings: Settings): Promise<void>;
-  getCorrectionHistory(): Promise<CorrectionHistoryItem[]>;
-  saveCorrectionHistoryItem(item: CorrectionHistoryItem): Promise<void>;
-  exportCorrectionResult(payload: ExportCorrectionPayload): Promise<ExportCorrectionResponse>;
-  trackEvent(event: AnalyticsEvent): Promise<void>;
-  startVoiceInput(): Promise<void>;
-  stopVoiceInput(): Promise<void>;
-  onTranscriptionResult(callback: (result: TranscriptionResult) => void): () => void;
-  onVoiceInputStatusChange(callback: (status: VoiceInputStatus) => void): () => void;
-  onVoiceInputShortcut(callback: () => void): () => void;
+  getPermissionStatus(): Promise<PermissionStatus>;
+  openAccessibilitySettings(): Promise<void>;
+  openSettingsWindow(): Promise<void>;
+  closeSettingsWindow(): Promise<void>;
+  retryLastCorrection(): Promise<void>;
+  dismissVoiceWindow(): Promise<void>;
+  onVoiceSessionStateChange(callback: (state: VoiceSessionViewModel) => void): () => void;
+  onSettingsRequired(callback: () => void): () => void;
 }
 
 declare global {

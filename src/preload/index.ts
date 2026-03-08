@@ -1,73 +1,52 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
-  AnalyticsEvent,
   BootstrapData,
-  CorrectionHistoryItem,
-  CorrectionRequest,
-  CorrectionResponse,
-  ExportCorrectionPayload,
-  ExportCorrectionResponse,
+  PermissionStatus,
   Settings,
-  TranscriptionResult,
-  VoiceInputStatus,
+  VoiceSessionViewModel,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  correctText: (request: CorrectionRequest): Promise<CorrectionResponse> => {
-    return ipcRenderer.invoke('correct-text', request);
-  },
-  getBootstrapData: (): Promise<BootstrapData> => {
-    return ipcRenderer.invoke('get-bootstrap-data');
-  },
-  getSettings: (): Promise<Settings> => {
-    return ipcRenderer.invoke('get-settings');
+  getSettingsWindowData: (): Promise<BootstrapData> => {
+    return ipcRenderer.invoke('get-settings-window-data');
   },
   saveSettings: (settings: Settings): Promise<void> => {
     return ipcRenderer.invoke('save-settings', settings);
   },
-  getCorrectionHistory: (): Promise<CorrectionHistoryItem[]> => {
-    return ipcRenderer.invoke('get-correction-history');
+  getPermissionStatus: (): Promise<PermissionStatus> => {
+    return ipcRenderer.invoke('get-permission-status');
   },
-  saveCorrectionHistoryItem: (item: CorrectionHistoryItem): Promise<void> => {
-    return ipcRenderer.invoke('save-correction-history-item', item);
+  openAccessibilitySettings: (): Promise<void> => {
+    return ipcRenderer.invoke('open-accessibility-settings');
   },
-  exportCorrectionResult: (payload: ExportCorrectionPayload): Promise<ExportCorrectionResponse> => {
-    return ipcRenderer.invoke('export-correction-result', payload);
+  openSettingsWindow: (): Promise<void> => {
+    return ipcRenderer.invoke('open-settings-window');
   },
-  trackEvent: (event: AnalyticsEvent): Promise<void> => {
-    return ipcRenderer.invoke('track-event', event);
+  closeSettingsWindow: (): Promise<void> => {
+    return ipcRenderer.invoke('close-settings-window');
   },
-  startVoiceInput: (): Promise<void> => {
-    return ipcRenderer.invoke('start-voice-input');
+  retryLastCorrection: (): Promise<void> => {
+    return ipcRenderer.invoke('retry-last-correction');
   },
-  stopVoiceInput: (): Promise<void> => {
-    return ipcRenderer.invoke('stop-voice-input');
+  dismissVoiceWindow: (): Promise<void> => {
+    return ipcRenderer.invoke('dismiss-voice-window');
   },
-  onTranscriptionResult: (callback: (result: TranscriptionResult) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, result: TranscriptionResult) => {
-      callback(result);
+  onVoiceSessionStateChange: (callback: (state: VoiceSessionViewModel) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: VoiceSessionViewModel) => {
+      callback(state);
     };
-    ipcRenderer.on('voice-transcription-result', handler);
+    ipcRenderer.on('voice-session-state-change', handler);
     return () => {
-      ipcRenderer.removeListener('voice-transcription-result', handler);
+      ipcRenderer.removeListener('voice-session-state-change', handler);
     };
   },
-  onVoiceInputStatusChange: (callback: (status: VoiceInputStatus) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, status: VoiceInputStatus) => {
-      callback(status);
-    };
-    ipcRenderer.on('voice-input-status-change', handler);
-    return () => {
-      ipcRenderer.removeListener('voice-input-status-change', handler);
-    };
-  },
-  onVoiceInputShortcut: (callback: () => void): (() => void) => {
+  onSettingsRequired: (callback: () => void): (() => void) => {
     const handler = () => {
       callback();
     };
-    ipcRenderer.on('voice-input-shortcut', handler);
+    ipcRenderer.on('settings-required', handler);
     return () => {
-      ipcRenderer.removeListener('voice-input-shortcut', handler);
+      ipcRenderer.removeListener('settings-required', handler);
     };
   },
 });

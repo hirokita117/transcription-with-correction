@@ -1,6 +1,14 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { VoiceCaptureApp } from './voice-capture-app';
 import './index.css';
 
 const root = createRoot(document.getElementById('root')!);
-root.render(<App />);
+const params = new URLSearchParams(window.location.search);
+const isOverlayWindow = params.get('overlay') === '1';
+
+if (isOverlayWindow) {
+  document.body.classList.add('overlay-window');
+}
+
+root.render(isOverlayWindow ? <VoiceCaptureApp /> : <App />);
