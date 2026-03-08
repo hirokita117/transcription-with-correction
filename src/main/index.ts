@@ -13,6 +13,7 @@ import { SpeechService } from './services/speech-service';
 import { VoiceCaptureWindowService } from './services/voice-capture-window-service';
 
 let isQuitting = false;
+let hasCleanedUp = false;
 
 const configManager = new ConfigManager();
 const settings = configManager.load();
@@ -86,23 +87,28 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
+  cleanupResources();
+});
+
+const cleanupResources = () => {
+  if (hasCleanedUp) return;
+
+  hasCleanedUp = true;
   if (!isQuitting) {
     isQuitting = true;
   }
+
   globalShortcut.unregisterAll();
   ipcHandler.destroy();
   residentModeService.destroy();
   settingsWindowService.destroy();
   voiceCaptureWindowService.destroy();
   speechService.destroy();
-});
+};
 
 const shutdown = () => {
   try {
-    residentModeService.destroy();
-    settingsWindowService.destroy();
-    voiceCaptureWindowService.destroy();
-    speechService.destroy();
+    cleanupResources();
   } finally {
     app.quit();
   }
