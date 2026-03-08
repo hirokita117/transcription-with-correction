@@ -7,6 +7,7 @@ interface SettingsWindowServiceOptions {
 
 export class SettingsWindowService {
   private window: BrowserWindow | null = null;
+  private isQuitting = false;
 
   constructor(private readonly options: SettingsWindowServiceOptions) {}
 
@@ -39,6 +40,10 @@ export class SettingsWindowService {
     this.window = null;
   }
 
+  prepareForQuit(): void {
+    this.isQuitting = true;
+  }
+
   private async ensureWindow(): Promise<BrowserWindow> {
     if (this.window && !this.window.isDestroyed()) {
       return this.window;
@@ -60,6 +65,10 @@ export class SettingsWindowService {
     });
 
     this.window.on('close', (event) => {
+      if (this.isQuitting) {
+        return;
+      }
+
       event.preventDefault();
       this.window?.hide();
     });

@@ -48,6 +48,7 @@ const residentModeService = new ResidentModeService({
   },
   onQuit: () => {
     isQuitting = true;
+    settingsWindowService.prepareForQuit();
     app.quit();
   },
   getPermissionStatus: () => permissionService.getStatus(),
@@ -84,6 +85,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  settingsWindowService.prepareForQuit();
 });
 
 app.on('quit', () => {
