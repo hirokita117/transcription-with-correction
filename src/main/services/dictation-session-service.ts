@@ -238,17 +238,9 @@ export class DictationSessionService extends EventEmitter {
       : { status: 'clipboard_only' as const, message: '校正結果をコピーしました' };
 
     if (pasteResult.status === 'pasted') {
-      await this.setState({
-        visible: true,
-        phase: 'success',
-        liveTranscript: '',
-        finalTranscript: sourceText,
-        correctedText: response.correctedText,
-        message: pasteResult.message ?? '校正して貼り付けました',
-        canRetryCorrection: false,
-      });
-      this.deps.voiceCaptureWindowService.dismissAfterDelay(HIDE_DELAY_MS);
-      this.resetSessionAfterDelay();
+      this.deps.voiceCaptureWindowService.dismiss();
+      this.currentState = DEFAULT_STATE;
+      this.resetSessionAfterDelay(0);
       return;
     }
 
@@ -263,7 +255,7 @@ export class DictationSessionService extends EventEmitter {
       errorCode: this.mapPasteError(pasteResult.details),
     });
     this.deps.voiceCaptureWindowService.dismissAfterDelay(HIDE_DELAY_MS + 1000);
-    this.resetSessionAfterDelay();
+    this.resetSessionAfterDelay(HIDE_DELAY_MS + 1200);
   }
 
   private async showFailureState(
@@ -296,7 +288,7 @@ export class DictationSessionService extends EventEmitter {
     this.currentState = DEFAULT_STATE;
   }
 
-  private resetSessionAfterDelay(): void {
+  private resetSessionAfterDelay(delayMs: number = HIDE_DELAY_MS + 1200): void {
     setTimeout(() => {
       this.currentState = DEFAULT_STATE;
       this.liveTranscript = '';
@@ -304,7 +296,7 @@ export class DictationSessionService extends EventEmitter {
       this.lastCorrectionSource = '';
       this.targetApp = null;
       this.deps.pasteBackService.clearTargetApp();
-    }, HIDE_DELAY_MS + 1200);
+    }, delayMs);
   }
 
   private async pasteCorrectedText(text: string, fallbackToClipboardOnly: boolean) {

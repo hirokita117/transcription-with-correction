@@ -86,6 +86,10 @@ app.on('before-quit', () => {
   isQuitting = true;
 });
 
+app.on('quit', () => {
+  cleanupResources();
+});
+
 app.on('will-quit', () => {
   cleanupResources();
 });
@@ -120,4 +124,16 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   shutdown();
+});
+
+process.on('SIGHUP', () => {
+  shutdown();
+});
+
+process.on('disconnect', () => {
+  shutdown();
+});
+
+process.on('exit', () => {
+  cleanupResources();
 });

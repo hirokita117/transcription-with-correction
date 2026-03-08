@@ -10,6 +10,8 @@ interface ResidentModeOptions {
   getPermissionStatus: () => Promise<PermissionStatus>;
 }
 
+const TRAY_ICON_SIZE = 28;
+
 export class ResidentModeService {
   private tray: Tray | null = null;
 
@@ -29,12 +31,15 @@ export class ResidentModeService {
     }
 
     const iconPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'icon.png')
-      : path.join(app.getAppPath(), 'build', 'icon.png');
+      ? path.join(process.resourcesPath, 'tray-icon.png')
+      : path.join(app.getAppPath(), 'build', 'tray-icon.png');
     const trayIcon = nativeImage.createFromPath(iconPath).resize({
-      width: 18,
-      height: 18,
+      width: TRAY_ICON_SIZE,
+      height: TRAY_ICON_SIZE,
     });
+    if (trayIcon.isEmpty()) {
+      console.warn(`Failed to load tray icon from: ${iconPath}`);
+    }
     trayIcon.setTemplateImage(true);
     this.tray = new Tray(trayIcon);
     this.tray.setToolTip('Transcription Correction');

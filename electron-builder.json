@@ -16,6 +16,10 @@
     {
       "from": "swift-helper/SpeechHelper/.build/release/AutomationHelper",
       "to": "AutomationHelper"
+    },
+    {
+      "from": "build/tray-icon.png",
+      "to": "tray-icon.png"
     }
   ],
   "mac": {

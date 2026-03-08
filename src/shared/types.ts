@@ -175,7 +175,6 @@ export type VoiceSessionPhase =
   | 'recording'
   | 'transcribing'
   | 'correcting'
-  | 'success'
   | 'provider_not_configured'
   | 'correction_failed'
   | 'paste_fallback';
