@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   BootstrapData,
+  CorrectionHistoryItem,
   PermissionStatus,
   Settings,
   VoiceSessionViewModel,
@@ -30,6 +31,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   dismissVoiceWindow: (): Promise<void> => {
     return ipcRenderer.invoke('dismiss-voice-window');
+  },
+  getTranscriptionHistory: (): Promise<CorrectionHistoryItem[]> => {
+    return ipcRenderer.invoke('get-transcription-history');
+  },
+  correctFromHistory: (id: string): Promise<void> => {
+    return ipcRenderer.invoke('correct-from-history', id);
+  },
+  deleteHistoryItem: (id: string): Promise<void> => {
+    return ipcRenderer.invoke('delete-history-item', id);
   },
   onVoiceSessionStateChange: (callback: (state: VoiceSessionViewModel) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, state: VoiceSessionViewModel) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Settings, ProviderType, ValidationError, PermissionStatus } from '../../shared/types';
+import { TranscriptionHistory } from './TranscriptionHistory';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -375,6 +376,9 @@ export function SettingsModal({
               {'テンプレート内の {text} が校正対象テキストに置換されます'}
             </p>
           </div>
+
+          {/* Transcription History */}
+          <TranscriptionHistory />
 
           {/* Actions */}
           <div className="flex justify-end gap-2">

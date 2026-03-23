@@ -121,7 +121,19 @@ export class ConfigManager {
 
   saveCorrectionHistoryItem(item: CorrectionHistoryItem): void {
     const current = this.getCorrectionHistory();
-    const next = [item, ...current].slice(0, 20);
+    const next = [item, ...current].slice(0, 50);
+    this.store.set('correctionHistory', next);
+  }
+
+  updateCorrectionHistoryItem(id: string, updates: Partial<CorrectionHistoryItem>): void {
+    const current = this.getCorrectionHistory();
+    const next = current.map((item) => (item.id === id ? { ...item, ...updates } : item));
+    this.store.set('correctionHistory', next);
+  }
+
+  deleteCorrectionHistoryItem(id: string): void {
+    const current = this.getCorrectionHistory();
+    const next = current.filter((item) => item.id !== id);
     this.store.set('correctionHistory', next);
   }
 
