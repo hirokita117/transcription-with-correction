@@ -70,6 +70,18 @@ export class IPCHandler {
     ipcMain.handle('dismiss-voice-window', async () => {
       this.dictationSessionService.dismissVoiceWindow();
     });
+
+    ipcMain.handle('get-transcription-history', async () => {
+      return this.configManager.getCorrectionHistory();
+    });
+
+    ipcMain.handle('correct-from-history', async (_event, id: string) => {
+      await this.dictationSessionService.correctFromHistory(id);
+    });
+
+    ipcMain.handle('delete-history-item', async (_event, id: string) => {
+      this.configManager.deleteCorrectionHistoryItem(id);
+    });
   }
 
   registerVoiceShortcut(shortcut: string): void {

@@ -38,11 +38,11 @@ describe('ConfigManager', () => {
     expect(bootstrap.needsSetup).toBe(false);
   });
 
-  it('stores latest 20 history items in reverse chronological order', async () => {
+  it('stores latest 50 history items in reverse chronological order', async () => {
     const { ConfigManager } = await import('../../../src/main/services/config-manager');
     const manager = new ConfigManager();
 
-    for (let index = 0; index < 22; index += 1) {
+    for (let index = 0; index < 52; index += 1) {
       const item: CorrectionHistoryItem = {
         id: String(index),
         inputText: `input-${index}`,
@@ -54,9 +54,9 @@ describe('ConfigManager', () => {
     }
 
     const history = manager.getCorrectionHistory();
-    expect(history).toHaveLength(20);
-    expect(history[0]?.id).toBe('21');
-    expect(history[19]?.id).toBe('2');
+    expect(history).toHaveLength(50);
+    expect(history[0]?.id).toBe('51');
+    expect(history[49]?.id).toBe('2');
   });
 
   it('tracks analytics events with a rolling cap', async () => {

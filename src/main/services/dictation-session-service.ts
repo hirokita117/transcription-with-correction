@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
 import type {
   CorrectionError,
   FrontmostAppInfo,
@@ -117,6 +118,13 @@ export class DictationSessionService extends EventEmitter {
     await this.runCorrection(this.lastCorrectionSource, 'retry');
   }
 
+  async correctFromHistory(id: string): Promise<void> {
+    const history = this.deps.configManager.getCorrectionHistory();
+    const item = history.find((h) => h.id === id);
+    if (!item || !item.inputText.trim()) return;
+    await this.runCorrection(item.inputText, 'history');
+  }
+
   dismissVoiceWindow(): void {
     this.currentState = DEFAULT_STATE;
     this.deps.voiceCaptureWindowService.dismiss();
@@ -185,10 +193,23 @@ export class DictationSessionService extends EventEmitter {
     this.emit('session-state-change', this.currentState);
   }
 
-  private async runCorrection(sourceText: string, trigger: 'auto' | 'retry'): Promise<void> {
+  private async runCorrection(sourceText: string, trigger: 'auto' | 'retry' | 'history'): Promise<void> {
     const settings = this.deps.configManager.load();
     this.latestSettings = settings;
     this.lastCorrectionSource = sourceText;
+
+    // Save to history before LLM call (only for new voice inputs)
+    let historyItemId: string | undefined;
+    if (trigger === 'auto') {
+      historyItemId = randomUUID();
+      this.deps.configManager.saveCorrectionHistoryItem({
+        id: historyItemId,
+        inputText: sourceText,
+        correctedText: undefined,
+        provider: settings.activeProvider,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     await this.setState({
       ...this.currentState,
@@ -231,6 +252,13 @@ export class DictationSessionService extends EventEmitter {
         this.mapCorrectionError(error?.type)
       );
       return;
+    }
+
+    // Update history with corrected text on success
+    if (historyItemId) {
+      this.deps.configManager.updateCorrectionHistoryItem(historyItemId, {
+        correctedText: response.correctedText,
+      });
     }
 
     const pasteResult = settings.pasteBack.enabled

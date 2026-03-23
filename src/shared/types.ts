@@ -114,7 +114,7 @@ export interface UIToast {
 export interface CorrectionHistoryItem {
   id: string;
   inputText: string;
-  correctedText: string;
+  correctedText?: string;
   provider: ProviderType;
   createdAt: string;
 }
@@ -220,6 +220,9 @@ export interface ElectronAPI {
   closeSettingsWindow(): Promise<void>;
   retryLastCorrection(): Promise<void>;
   dismissVoiceWindow(): Promise<void>;
+  getTranscriptionHistory(): Promise<CorrectionHistoryItem[]>;
+  correctFromHistory(id: string): Promise<void>;
+  deleteHistoryItem(id: string): Promise<void>;
   onVoiceSessionStateChange(callback: (state: VoiceSessionViewModel) => void): () => void;
   onSettingsRequired(callback: () => void): () => void;
 }
